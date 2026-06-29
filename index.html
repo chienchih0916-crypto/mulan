@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>木蘭詩 - 大地圖速通挑戰</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700;900&display=swap');
+        
+        body {
+            font-family: 'Noto Serif TC', serif;
+            background-color: #120f0d;
+            color: #ece3d2;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+
+        /* 經典古典震動特效 */
+        .shake {
+            animation: shake 0.5s;
+        }
+
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(1px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+
+        /* 大地圖背景：鎖定為 3:2 比例，載入 地圖.jpg */
+        #world-map {
+            background-image: url('地圖.jpg');
+            background-size: 100% 100%;
+            background-position: center;
+            background-repeat: no-repeat;
+            position: relative;
+            width: 100%;
+            height: 100%;
+            box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.8), 0 20px 40px rgba(0,0,0,0.9);
+        }
+
+        /* 人物.png 精緻定位：腳底對準坐標 */
+        #player-sprite {
+            position: absolute;
+            width: 75px;
+            height: 130px;
+            object-fit: contain;
+            transform: translate(-50%, -90%);
+            z-index: 15;
+            pointer-events: none;
+            filter: drop-shadow(0px 8px 12px rgba(0,0,0,0.6));
+        }
+
+        /* 古典金屬發光節點 */
+        .map-node {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 3px solid #d97706; /* 琥珀金 */
+            background-color: rgba(30, 27, 24, 0.85);
+            cursor: pointer;
+            z-index: 20;
+            box-shadow: 0 0 10px rgba(0,0,0,0.8);
+            transition: all 0.4s ease;
+        }
+
+        .map-node.active {
+            border-color: #ef4444; /* 硃砂紅 */
+            background-color: #ef4444;
+            box-shadow: 0 0 25px #ef4444, inset 0 0 8px #fff;
+            animation: pulse 1.5s infinite;
+        }
+
+        .map-node.cleared {
+            background-color: #16a34a; /* 翡翠綠 */
+            border-color: #86efac;
+            box-shadow: 0 0 15px rgba(22, 163, 74, 0.6);
+        }
+        
+        .map-node.locked {
+            pointer-events: none;
+            opacity: 0.4;
+            border-color: #4b5563;
+            background-color: #1f2937;
+        }
+
+        @keyframes pulse {
+            0% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.25); }
+            100% { transform: translate(-50%, -50%) scale(1); }
+        }
+
+        /* 螢幕覆蓋 */
+        .screen {
+            display: none !important;
+            position: absolute;
+            inset: 0;
+            z-index: 50;
+        }
+        
+        .screen.active {
+            display: flex !important;
+        }
+
+        #game-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            height: 100vh;
+            position: relative;
+            background: #0f0d0b;
+        }
+
+        #market-horse-stage {
+            position: relative;
+            min-height: 330px;
+            overflow: hidden;
+            border: 2px dashed #76543b;
+            border-radius: 18px;
+            background: radial-gradient(circle, #3b2a1e 0%, #1b120d 72%);
+        }
+
+        .market-character-image {
+            position: absolute;
+            object-fit: contain;
+            filter: drop-shadow(0 12px 8px rgba(0, 0, 0, 0.45));
+            transition: opacity 0.35s ease, transform 0.35s ease;
+        }
+
+        #market-mulan,
+        #market-mulan-whip {
+            width: 31%;
+            height: 92%;
+            left: 0;
+            bottom: 0;
+            z-index: 4;
+        }
+
+        #market-horse {
+            width: 78%;
+            height: 94%;
+            right: -2%;
+            bottom: -2%;
+            z-index: 1;
+        }
+
+        .horse-equipment-image {
+            position: absolute;
+            object-fit: contain;
+            z-index: 3;
+            filter: drop-shadow(0 5px 5px rgba(0, 0, 0, 0.45));
+            animation: equip-pop 0.4s ease-out;
+        }
+
+        #equip-saddle { width: 22%; height: 25%; left: 52%; top: 32%; transform: rotate(-2deg); }
+        #equip-bridle { width: 22%; height: 50%; left: 35%; top: 10%; transform: rotate(-4deg); }
+
+        @keyframes equip-pop {
+            0% { opacity: 0; transform: scale(1.5); }
+            70% { transform: scale(0.92); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container" class="flex flex-col justify-between overflow-hidden shadow-2xl">
+
+    <!-- 全局頂部欄 (HUD) -->
+    <header class="bg-[#1c1815] border-b-2 border-[#3d2e24] px-6 py-3 flex justify-between items-center z-40 shadow-md">
+        <div class="flex items-center gap-3">
+            <span class="text-2xl">🏮</span>
+            <h1 class="text-xl md:text-2xl font-black tracking-wider text-[#d9a05b] font-serif">木蘭詩速通大挑戰</h1>
+        </div>
+        <div class="flex items-center gap-4">
+            <div id="hud" class="hidden bg-[#2d1e15] border border-[#d97706] text-[#f5f5f4] px-4 py-1.5 rounded-lg text-lg md:text-xl font-mono font-bold shadow">
+                ⏱️ <span id="timer-display">00:00.000</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主遊戲舞台 (維持 3:2 比例的大地圖) -->
+    <main class="flex-1 flex justify-center items-center bg-[#090807] p-4 relative">
+        <div class="w-full max-w-[1000px] aspect-[3/2] relative rounded-xl border-4 border-[#3e2c1e] overflow-hidden shadow-inner" id="map-frame">
+            <div id="world-map">
+                <!-- 玩家角色 (人物.png) -->
+                <img id="player-sprite" src="人物-去背.png" alt="木蘭" onerror="fallbackPlayer(this)">
+                
+                <!-- 節點置放處 -->
+                <div id="nodes-container"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 浮動懲罰提示 -->
+    <div id="penalty-toast" class="hidden absolute top-20 right-6 bg-[#991b1b] text-white px-5 py-3 rounded-xl shadow-2xl font-bold text-lg z-50 transition-all duration-300 opacity-0 border-2 border-red-300">
+        ⚡ 答錯！懲罰 +5 秒
+    </div>
+
+    <!-- 標題畫面 -->
+    <div id="screen-title" class="screen active bg-[#0f0d0bc0] backdrop-blur-md flex flex-col justify-center items-center p-6 text-center">
+        <div class="bg-[#241a14] border-4 border-[#d97706] p-8 md:p-12 rounded-3xl max-w-2xl w-full shadow-2xl relative">
+            <div class="absolute -top-10 left-1/2 transform -translate-x-1/2 bg-[#ef4444] text-white border-2 border-white px-8 py-3 rounded-full text-2xl font-black shadow-lg">
+                詩詞探險
+            </div>
+            <h1 class="text-5xl md:text-6xl font-black mt-4 mb-4 text-[#eab308] tracking-widest font-serif">木蘭詩</h1>
+            <h2 class="text-2xl font-bold mb-6 text-[#f5f5f4] border-b border-[#3d2e24] pb-4">大地圖速通挑戰</h2>
+            <p class="text-lg text-[#d6c5b3] mb-8 leading-relaxed font-serif text-justify md:text-center">
+                玩家將帶領木蘭「人物.png」在「地圖.jpg」畫卷中進行七大關卡的智慧試煉。
+                本遊戲結合<b>「檢索訊息」</b>、<b>「摘要段落」</b>與<b>「統整解釋」</b>三大閱讀任務，
+                用最快的速度答對所有經典文本，締造全班最高速通紀錄吧！
+            </p>
+            <button id="start-button" type="button" onclick="startGame()" class="bg-[#b91c1c] hover:bg-[#dc2626] text-[#fff] font-extrabold py-4 px-12 rounded-full text-2xl shadow-xl transition-all transform hover:scale-105 active:scale-95 border-b-4 border-[#7f1d1d] tracking-wider">
+                進入戰局
+            </button>
+        </div>
+    </div>
+
+    <!-- 關卡問答彈跳視窗 (Modal) -->
+    <div id="screen-question" class="screen bg-black/80 flex flex-col justify-center items-center p-4">
+        <div class="bg-[#1e1511] p-6 md:p-8 rounded-3xl max-w-2xl w-full shadow-2xl relative border-4 border-[#d97706] text-[#ece3d2]">
+            <!-- 關卡標題 -->
+            <div class="absolute -top-6 left-1/2 transform -translate-x-1/2 bg-[#b91c1c] text-white px-8 py-2 rounded-full font-bold text-lg md:text-xl shadow-lg border-2 border-[#fef08a]" id="q-modal-title">
+                第一關：木蘭家
+            </div>
+            
+            <!-- 文本閱讀區 -->
+            <div class="bg-[#2a1d17] p-4 md:p-5 rounded-xl mt-6 mb-6 border-l-4 border-[#eab308] shadow-inner">
+                <span class="text-xs font-bold text-[#eab308] tracking-wider uppercase block mb-1">【對應古詩文本】</span>
+                <p class="text-base md:text-lg font-serif leading-relaxed text-[#f5f5f4]" id="q-modal-text"></p>
+            </div>
+
+            <!-- 題目區域 -->
+            <h3 class="text-xl md:text-2xl font-black mb-6 text-[#fef08a]" id="q-modal-q"></h3>
+            
+            <!-- 選項按鈕 -->
+            <div id="q-modal-options" class="flex flex-col gap-3">
+                <!-- 由 JS 動態生成 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 第二關：市場採購挑戰 -->
+    <div id="screen-market" class="screen bg-black/85 flex flex-col justify-center items-center p-4">
+        <div class="bg-[#1e1511] p-5 md:p-7 rounded-3xl max-w-5xl w-full max-h-[94vh] overflow-y-auto shadow-2xl border-4 border-[#d97706] text-[#ece3d2]">
+            <div class="text-center mb-4">
+                <h2 class="text-2xl md:text-3xl font-black text-[#facc15]">第二關：市場採購</h2>
+                <p class="text-[#d6c5b3] mt-1">依詩句選對商品，為木蘭的戰馬備齊出征裝備。</p>
+            </div>
+
+            <div class="bg-[#2a1d17] px-4 py-3 rounded-xl mb-5 border-l-4 border-[#eab308] text-center text-base md:text-lg font-serif leading-relaxed">
+                東市買駿馬，西市買鞍韉，<br class="hidden md:block">
+                南市買轡頭，北市買長鞭。
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-5">
+                <section class="bg-[#291b14] rounded-2xl p-5 border border-[#76543b]">
+                    <div id="market-progress" class="grid grid-cols-4 gap-2 mb-5"></div>
+                    <p class="text-sm font-bold text-[#eab308] mb-1">當前商鋪</p>
+                    <h3 id="market-shop-name" class="text-3xl font-black mb-2"></h3>
+                    <p id="market-prompt" class="text-[#d6c5b3] mb-5"></p>
+                    <div id="market-options" class="grid gap-3"></div>
+                    <p id="market-status" class="mt-4 min-h-7 font-bold text-[#86efac]"></p>
+                </section>
+
+                <section class="bg-[#291b14] rounded-2xl p-5 border border-[#76543b]">
+                    <h3 class="text-xl font-black text-center text-[#fef08a] mb-3">戰馬裝備區</h3>
+                    <div id="market-horse-stage">
+                        <img id="market-mulan" class="market-character-image" src="人物-去背.png" alt="木蘭">
+                        <img id="market-mulan-whip" class="market-character-image hidden" src="木蘭-長鞭-去背.png" alt="手持長鞭的木蘭">
+                        <img id="market-horse" class="market-character-image hidden" src="馬匹-去背.png" alt="駿馬">
+                        <img id="equip-saddle" class="horse-equipment-image hidden" src="鞍韉-去背.png" alt="鞍韉">
+                        <img id="equip-bridle" class="horse-equipment-image hidden" src="轡頭-去背.png" alt="轡頭">
+                    </div>
+                    <p id="market-equipment-count" class="text-center mt-3 font-bold text-[#d6c5b3]">已採購 0 / 4</p>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <!-- 結算畫面 -->
+    <div id="screen-result" class="screen bg-[#0f0d0be0] flex flex-col justify-center items-center p-6 text-center">
+        <div class="bg-[#241a14] border-4 border-[#16a34a] p-8 rounded-3xl max-w-md w-full shadow-2xl">
+            <h1 class="text-4xl md:text-5xl font-black mb-2 text-[#4ade80] tracking-wider font-serif">凱旋歸來！</h1>
+            <div class="text-6xl mb-6">⚔️</div>
+            
+            <div class="bg-[#1b120d] p-6 rounded-2xl shadow-inner border border-[#3d2e24] mb-8">
+                <p class="text-[#a8a29e] mb-2 font-bold text-base">最終速通時間</p>
+                <p id="final-time" class="text-5xl font-mono font-black text-[#facc15] mb-6">00:00.000</p>
+                
+                <div class="text-left space-y-3 text-base text-[#d6c5b3] border-t border-[#3d2e24] pt-4">
+                    <p>❌ 答錯次數: <span id="final-mistakes" class="font-bold text-[#ef4444] text-lg">0</span> 次</p>
+                    <p>⏳ 懲罰秒數: <span id="final-penalty" class="font-bold text-[#ef4444] text-lg">0</span> 秒</p>
+                </div>
+            </div>
+            
+            <button onclick="location.reload()" class="w-full bg-[#16a34a] hover:bg-[#22c55e] text-white font-extrabold py-4 px-8 rounded-xl text-xl shadow-lg border-b-4 border-[#14532d] transition-all transform hover:scale-105 active:scale-95">
+                再次遠征
+            </button>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // --- 音效生成系統 (Web Audio API) ---
+    let audioCtx = null;
+    
+    function playBeep(type) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        try {
+            if (!audioCtx) audioCtx = new AudioContext();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        } catch (error) {
+            return;
+        }
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        if (type === 'success') {
+            // 清脆和弦
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+            osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1); // E5
+            osc.frequency.setValueAtTime(783.99, audioCtx.currentTime + 0.2); // G5
+            gain.gain.setValueAtTime(0.18, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.45);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.45);
+        } else {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(180, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(90, audioCtx.currentTime + 0.25);
+            gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.25);
+        }
+    }
+
+    const levels = [
+        {
+            name: '第一關：木蘭家', x: 16, y: 18,
+            text: '嘰嘰復嘰嘰，木蘭當戶織。不聞機杼聲，惟聞女嘆息。',
+            question: '木蘭織布時，家人只聽見什麼？',
+            options: ['機杼轉動的聲音', '木蘭的嘆息聲', '門外的馬蹄聲'], answer: 1
+        },
+        {
+            name: '第二關：市場', x: 52, y: 18,
+            text: '東市買駿馬，西市買鞍韉，南市買轡頭，北市買長鞭。',
+            question: '這段排比句主要表現了什麼？',
+            options: ['木蘭急忙準備出征裝備', '市集貨品價格昂貴', '木蘭想在市集開店'], answer: 0
+        },
+        {
+            name: '第三關：黃河邊', x: 84, y: 35,
+            text: '旦辭爺娘去，暮宿黃河邊。不聞爺娘喚女聲，但聞黃河流水鳴濺濺。',
+            question: '木蘭在黃河邊聽到的是什麼？',
+            options: ['父母的呼喚', '士兵的歌聲', '黃河的流水聲'], answer: 2
+        },
+        {
+            name: '第四關：黑山頭', x: 65, y: 43,
+            text: '萬里赴戎機，關山度若飛。朔氣傳金柝，寒光照鐵衣。',
+            question: '「關山度若飛」用來形容木蘭怎樣的行程？',
+            options: ['迅速跨越關山', '在山中迷路', '搭乘飛鳥前進'], answer: 0
+        },
+        {
+            name: '第五關：戰場', x: 17, y: 45,
+            text: '將軍百戰死，壯士十年歸。',
+            question: '這兩句最能概括哪項內容？',
+            options: ['戰事短暫而輕鬆', '戰事長久且傷亡慘重', '將士都在十天後回家'], answer: 1
+        },
+        {
+            name: '第六關：明堂', x: 40, y: 70,
+            text: '策勳十二轉，賞賜百千強。可汗問所欲，木蘭不用尚書郎。',
+            question: '木蘭面對高官厚禄的態度是什麼？',
+            options: ['欣然接受', '嫌官位不夠高', '婉拒官職、希望返鄉'], answer: 2
+        },
+        {
+            name: '第七關：木蘭家・返鄉', x: 77, y: 72,
+            text: '雄兔腳撲朔，雌兔眼迷離；雙兔傍地走，安能辨我是雄雌？',
+            question: '結尾以雙兔為喻，主要讚美木蘭什麼？',
+            options: ['喜愛飼養兔子', '機智且能力不輸男子', '善於分辨動物'], answer: 1
+        }
+    ];
+
+    const marketShops = [
+        { direction: '東市', correct: '駿馬', choices: ['駿馬', '戰車', '盔甲'] },
+        { direction: '西市', correct: '鞍韉', choices: ['粮草', '鞍韉', '馬靴'] },
+        { direction: '南市', correct: '轡頭', choices: ['轡頭', '頭盔', '弓箭'] },
+        { direction: '北市', correct: '長鞭', choices: ['旗幟', '短刀', '長鞭'] }
+    ];
+
+    const routePaths = [
+        [{ x: 16, y: 18 }, { x: 27, y: 27 }, { x: 37, y: 27 }, { x: 44, y: 20 }, { x: 52, y: 18 }],
+        [{ x: 52, y: 18 }, { x: 63, y: 19 }, { x: 72, y: 24 }, { x: 76, y: 32 }, { x: 84, y: 35 }],
+        [{ x: 84, y: 35 }, { x: 82, y: 48 }, { x: 78, y: 60 }, { x: 70, y: 64 }, { x: 65, y: 43 }],
+        [{ x: 65, y: 43 }, { x: 61, y: 66 }, { x: 48, y: 64 }, { x: 35, y: 57 }, { x: 25, y: 63 }, { x: 17, y: 45 }],
+        [{ x: 17, y: 45 }, { x: 20, y: 68 }, { x: 20, y: 77 }, { x: 29, y: 82 }, { x: 40, y: 70 }],
+        [{ x: 40, y: 70 }, { x: 45, y: 82 }, { x: 55, y: 86 }, { x: 66, y: 84 }, { x: 73, y: 79 }, { x: 77, y: 72 }]
+    ];
+
+    let currentLevel = 0;
+    let playerLevel = 0;
+    let isMoving = false;
+    let startTime = 0;
+    let penaltySeconds = 0;
+    let mistakes = 0;
+    let timerId;
+    let marketShopIndex = 0;
+    let marketInputLocked = false;
+
+    const byId = id => document.getElementById(id);
+
+    function fallbackPlayer(image) {
+        image.style.display = 'none';
+    }
+
+    function formatTime(milliseconds) {
+        const total = Math.max(0, Math.floor(milliseconds));
+        const minutes = Math.floor(total / 60000);
+        const seconds = Math.floor((total % 60000) / 1000);
+        const ms = total % 1000;
+        return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
+    }
+
+    function elapsedTime() {
+        return performance.now() - startTime + penaltySeconds * 1000;
+    }
+
+    function updateTimer() {
+        byId('timer-display').textContent = formatTime(elapsedTime());
+    }
+
+    function renderMap() {
+        const container = byId('nodes-container');
+        container.innerHTML = '';
+        levels.forEach((level, index) => {
+            const node = document.createElement('button');
+            node.type = 'button';
+            node.className = `map-node ${index < currentLevel ? 'cleared' : index === currentLevel ? 'active' : 'locked'}`;
+            node.style.left = `${level.x}%`;
+            node.style.top = `${level.y}%`;
+            node.setAttribute('aria-label', level.name);
+            if (index <= currentLevel) node.addEventListener('click', () => travelToLevel(index));
+            container.appendChild(node);
+        });
+    }
+
+    function placePlayer(index) {
+        const player = byId('player-sprite');
+        player.style.left = `${levels[index].x}%`;
+        player.style.top = `${levels[index].y}%`;
+    }
+
+    function getTravelPoints(from, to) {
+        if (from === to) return [{ x: levels[to].x, y: levels[to].y }];
+        const points = [];
+        const direction = to > from ? 1 : -1;
+        for (let index = from; index !== to; index += direction) {
+            const pathIndex = direction > 0 ? index : index - 1;
+            const section = direction > 0 ? routePaths[pathIndex] : [...routePaths[pathIndex]].reverse();
+            points.push(...(points.length ? section.slice(1) : section));
+        }
+        return points;
+    }
+
+    function animatePlayerAlongRoute(from, to, onComplete) {
+        const player = byId('player-sprite');
+        const points = getTravelPoints(from, to);
+        const lastIndex = points.length - 1;
+        const frames = points.map((point, index) => ({
+            left: `${point.x}%`,
+            top: `${point.y}%`,
+            offset: lastIndex ? index / lastIndex : 1,
+            transform: `translate(-50%, -90%) translateY(${index % 2 ? '-6px' : '0'}) rotate(${index % 2 ? '2deg' : '-2deg'})`
+        }));
+        frames[frames.length - 1].transform = 'translate(-50%, -90%) translateY(0) rotate(0)';
+        const animation = player.animate(frames, {
+            duration: Math.max(1600, lastIndex * 520),
+            easing: 'linear',
+            fill: 'forwards'
+        });
+        animation.addEventListener('finish', () => {
+            placePlayer(to);
+            animation.cancel();
+            onComplete();
+        }, { once: true });
+    }
+
+    function travelToLevel(index) {
+        if (isMoving || index > currentLevel) return;
+        const shouldChallenge = index === currentLevel;
+        const hasMoved = index !== playerLevel;
+        const previousLevel = playerLevel;
+        isMoving = true;
+        playerLevel = index;
+        const arrive = () => {
+            isMoving = false;
+            if (shouldChallenge) openQuestion(index);
+        };
+        if (hasMoved) {
+            animatePlayerAlongRoute(previousLevel, index, arrive);
+        } else {
+            window.setTimeout(arrive, 100);
+        }
+    }
+
+    function startGame() {
+        currentLevel = 0;
+        playerLevel = 0;
+        isMoving = false;
+        penaltySeconds = 0;
+        mistakes = 0;
+        startTime = performance.now();
+        byId('screen-title').classList.remove('active');
+        byId('hud').classList.remove('hidden');
+        renderMap();
+        placePlayer(playerLevel);
+        updateTimer();
+        timerId = window.setInterval(updateTimer, 31);
+    }
+
+    function openQuestion(index) {
+        if (index === 1) {
+            openMarketChallenge();
+            return;
+        }
+        const level = levels[index];
+        byId('q-modal-title').textContent = level.name;
+        byId('q-modal-text').textContent = level.text;
+        byId('q-modal-q').textContent = level.question;
+        const options = byId('q-modal-options');
+        options.innerHTML = '';
+        level.options.forEach((option, optionIndex) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'w-full bg-[#3a2920] hover:bg-[#5a3b28] border-2 border-[#76543b] px-5 py-3 rounded-xl text-left text-lg font-bold transition-colors';
+            button.textContent = option;
+            button.addEventListener('click', () => answerQuestion(optionIndex, button));
+            options.appendChild(button);
+        });
+        byId('screen-question').classList.add('active');
+    }
+
+    function openMarketChallenge() {
+        marketShopIndex = 0;
+        byId('market-horse').className = 'market-character-image hidden';
+        byId('market-mulan').className = 'market-character-image';
+        byId('market-mulan-whip').className = 'market-character-image hidden';
+        ['equip-saddle', 'equip-bridle'].forEach(id => byId(id).classList.add('hidden'));
+        byId('market-equipment-count').textContent = '已採購 0 / 4';
+        byId('market-status').textContent = '';
+        renderMarketShop();
+        byId('screen-market').classList.add('active');
+    }
+
+    function renderMarketShop() {
+        marketInputLocked = false;
+        const shop = marketShops[marketShopIndex];
+        const progress = byId('market-progress');
+        progress.innerHTML = '';
+        marketShops.forEach((item, index) => {
+            const step = document.createElement('div');
+            step.className = `rounded-lg px-2 py-2 text-center text-sm font-black border ${index < marketShopIndex ? 'bg-green-800 border-green-400 text-white' : index === marketShopIndex ? 'bg-amber-700 border-yellow-300 text-white' : 'bg-[#1b120d] border-[#594235] text-[#78716c]'}`;
+            step.textContent = index < marketShopIndex ? `✓ ${item.direction}` : item.direction;
+            progress.appendChild(step);
+        });
+
+        byId('market-shop-name').textContent = shop.direction;
+        byId('market-prompt').textContent = `詩句說木蘭在${shop.direction}買了什麼？`;
+        byId('market-status').textContent = '';
+        const options = byId('market-options');
+        options.innerHTML = '';
+        shop.choices.forEach(item => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'w-full bg-[#3a2920] hover:bg-[#5a3b28] border-2 border-[#76543b] px-5 py-3 rounded-xl text-left text-lg font-bold transition-colors';
+            button.textContent = item;
+            button.addEventListener('click', () => chooseMarketItem(item, button));
+            options.appendChild(button);
+        });
+    }
+
+    function chooseMarketItem(item, button) {
+        if (marketInputLocked) return;
+        const shop = marketShops[marketShopIndex];
+        if (item !== shop.correct) {
+            applyPenalty(button);
+            byId('market-status').textContent = `這不是${shop.direction}要買的裝備，再看一次詩句！`;
+            byId('market-status').className = 'mt-4 min-h-7 font-bold text-red-400';
+            return;
+        }
+
+        playBeep('success');
+        marketInputLocked = true;
+        marketShopIndex += 1;
+        updateHorseEquipment(shop.correct);
+        byId('market-status').className = 'mt-4 min-h-7 font-bold text-[#86efac]';
+        byId('market-status').textContent = shop.correct === '長鞭'
+            ? '購得長鞭！已交到木蘭手中。'
+            : `購得${shop.correct}！已裝備到戰馬上。`;
+
+        if (marketShopIndex === marketShops.length) {
+            byId('market-options').innerHTML = '';
+            byId('market-prompt').textContent = '四市採購完成，木蘭已備齊出征裝備！';
+            window.setTimeout(() => completeCurrentLevel('screen-market'), 900);
+        } else {
+            window.setTimeout(renderMarketShop, 500);
+        }
+    }
+
+    function updateHorseEquipment(item) {
+        if (item === '駿馬') byId('market-horse').classList.remove('hidden');
+        if (item === '鞍韉') byId('equip-saddle').classList.remove('hidden');
+        if (item === '轡頭') byId('equip-bridle').classList.remove('hidden');
+        if (item === '長鞭') {
+            byId('market-mulan').classList.add('hidden');
+            byId('market-mulan-whip').classList.remove('hidden');
+        }
+        byId('market-equipment-count').textContent = `已採購 ${marketShopIndex} / 4`;
+    }
+
+    function applyPenalty(button) {
+        mistakes += 1;
+        penaltySeconds += 5;
+        playBeep('error');
+        button.classList.add('shake', 'border-red-500', 'bg-red-900');
+        window.setTimeout(() => button.classList.remove('shake', 'border-red-500', 'bg-red-900'), 500);
+        const toast = byId('penalty-toast');
+        toast.classList.remove('hidden');
+        requestAnimationFrame(() => toast.classList.remove('opacity-0'));
+        window.setTimeout(() => {
+            toast.classList.add('opacity-0');
+            window.setTimeout(() => toast.classList.add('hidden'), 300);
+        }, 1200);
+        updateTimer();
+    }
+
+    function answerQuestion(selected, button) {
+        const level = levels[currentLevel];
+        if (selected !== level.answer) {
+            applyPenalty(button);
+            return;
+        }
+
+        playBeep('success');
+        completeCurrentLevel('screen-question');
+    }
+
+    function completeCurrentLevel(screenId) {
+        byId(screenId).classList.remove('active');
+        currentLevel += 1;
+        if (currentLevel === levels.length) {
+            finishGame();
+        } else {
+            renderMap();
+        }
+    }
+
+    function finishGame() {
+        window.clearInterval(timerId);
+        updateTimer();
+        byId('final-time').textContent = byId('timer-display').textContent;
+        byId('final-mistakes').textContent = mistakes;
+        byId('final-penalty').textContent = penaltySeconds;
+        byId('screen-result').classList.add('active');
+    }
+
+    window.startGame = startGame;
+    renderMap();
+</script>
+</body>
+</html>
