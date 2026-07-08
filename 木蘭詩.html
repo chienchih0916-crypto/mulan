@@ -1,0 +1,4563 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>木蘭詩 - 大地圖速通挑戰</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700;900&display=swap');
+        
+        body {
+            font-family: 'Noto Serif TC', serif;
+            background-color: #120f0d;
+            color: #ece3d2;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+
+        /* 經典古典震動特效 */
+        .shake {
+            animation: shake 0.5s;
+        }
+
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(1px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+
+        /* 大地圖背景：配合 地圖更新.png 的 4:3 比例 */
+        #world-map {
+            background-image: url('地圖更新.png');
+            background-size: 100% 100%;
+            background-position: center;
+            background-repeat: no-repeat;
+            position: relative;
+            width: 100%;
+            height: 100%;
+            box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.8), 0 20px 40px rgba(0,0,0,0.9);
+        }
+
+        /* 人物.png 精緻定位：腳底對準坐標 */
+        #player-sprite {
+            position: absolute;
+            width: 84px;
+            height: 145px;
+            object-fit: contain;
+            object-position: center bottom;
+            transform: translate(-50%, -90%);
+            z-index: 15;
+            pointer-events: none;
+            filter: drop-shadow(0px 8px 12px rgba(0,0,0,0.6));
+        }
+
+        /* 古典金屬發光節點 */
+        .map-node {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 3px solid #d97706; /* 琥珀金 */
+            background-color: rgba(30, 27, 24, 0.85);
+            cursor: pointer;
+            z-index: 20;
+            box-shadow: 0 0 10px rgba(0,0,0,0.8);
+            transition: all 0.4s ease;
+        }
+
+        .map-node.active {
+            border-color: #ef4444; /* 硃砂紅 */
+            background-color: #ef4444;
+            box-shadow: 0 0 25px #ef4444, inset 0 0 8px #fff;
+            animation: pulse 1.5s infinite;
+        }
+
+        .map-node.cleared {
+            background-color: #16a34a; /* 翡翠綠 */
+            border-color: #86efac;
+            box-shadow: 0 0 15px rgba(22, 163, 74, 0.6);
+        }
+        
+        .map-node.locked {
+            pointer-events: none;
+            opacity: 0.4;
+            border-color: #4b5563;
+            background-color: #1f2937;
+        }
+
+        @keyframes pulse {
+            0% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.25); }
+            100% { transform: translate(-50%, -50%) scale(1); }
+        }
+
+        /* 螢幕覆蓋 */
+        .screen {
+            display: none !important;
+            position: absolute;
+            inset: 0;
+            z-index: 50;
+        }
+        
+        .screen.active {
+            display: flex !important;
+        }
+
+        #screen-title {
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            background: #120c08;
+        }
+
+        #title-cover-frame {
+            position: relative;
+            width: min(100%, 177.68vh);
+            aspect-ratio: 1672 / 941;
+            max-height: 100%;
+        }
+
+        #title-cover-image {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        #start-button {
+            position: absolute;
+            z-index: 2;
+            left: 50%;
+            bottom: 10%;
+            transform: translateX(-50%);
+            min-width: min(390px, 62%);
+            padding: clamp(9px, 1.3vw, 16px) clamp(18px, 3vw, 42px);
+            border: 3px solid #f5d78e;
+            border-radius: 999px;
+            background: linear-gradient(#a52620, #681713);
+            color: #fff5d6;
+            font-size: clamp(15px, 2.1vw, 27px);
+            font-weight: 900;
+            letter-spacing: .08em;
+            white-space: nowrap;
+            box-shadow: 0 7px 0 #3b0d0a, 0 12px 28px rgba(0, 0, 0, .65), inset 0 1px 0 rgba(255, 255, 255, .28);
+            transition: transform .18s ease, filter .18s ease;
+        }
+
+        #start-button:hover { transform: translateX(-50%) scale(1.04); filter: brightness(1.12); }
+        #start-button:active { transform: translateX(-50%) translateY(4px); box-shadow: 0 3px 0 #3b0d0a, 0 7px 16px rgba(0, 0, 0, .55); }
+
+        #game-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            height: 100vh;
+            position: relative;
+            background: #0f0d0b;
+        }
+
+        #market-horse-stage {
+            position: relative;
+            min-height: 330px;
+            overflow: hidden;
+            border: 2px dashed #76543b;
+            border-radius: 18px;
+            background: radial-gradient(circle, #3b2a1e 0%, #1b120d 72%);
+        }
+
+        .market-character-image {
+            position: absolute;
+            object-fit: contain;
+            filter: drop-shadow(0 12px 8px rgba(0, 0, 0, 0.45));
+            transition: opacity 0.35s ease, transform 0.35s ease;
+        }
+
+        #market-mulan,
+        #market-mulan-whip {
+            width: 31%;
+            height: 92%;
+            left: 0;
+            bottom: 0;
+            z-index: 4;
+        }
+
+        #market-horse {
+            width: 78%;
+            height: 94%;
+            right: -2%;
+            bottom: -2%;
+            z-index: 1;
+        }
+
+        .horse-equipment-image {
+            position: absolute;
+            object-fit: contain;
+            z-index: 3;
+            filter: drop-shadow(0 5px 5px rgba(0, 0, 0, 0.45));
+            animation: equip-pop 0.4s ease-out;
+        }
+
+        #equip-saddle { width: 22%; height: 25%; left: 52%; top: 32%; transform: rotate(-2deg); }
+        #equip-bridle { width: 22%; height: 50%; left: 35%; top: 10%; transform: rotate(-4deg); }
+
+        @keyframes equip-pop {
+            0% { opacity: 0; transform: scale(1.5); }
+            70% { transform: scale(0.92); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        #dressup-panel {
+            width: min(1100px, 100%);
+            max-height: 95vh;
+            overflow-y: auto;
+            color: #3f281a;
+            background: #ead6b5;
+            border: 5px solid #7b4b2a;
+            border-radius: 24px;
+            box-shadow: 0 18px 45px rgba(0, 0, 0, 0.55);
+        }
+
+        #dressup-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px 18px;
+            color: #fff5dc;
+            background: #6d3824;
+        }
+
+        #dressup-timer {
+            min-width: 105px;
+            padding: 7px 12px;
+            border: 2px solid #f5c96c;
+            border-radius: 12px;
+            background: #341d17;
+            color: #fde68a;
+            font-weight: 900;
+            text-align: center;
+        }
+
+        #dressup-room {
+            position: relative;
+            display: grid;
+            grid-template-columns: 150px minmax(250px, 1fr) 290px;
+            gap: 14px;
+            min-height: 570px;
+            padding: 18px;
+            background:
+                linear-gradient(90deg, transparent 0 72%, rgba(89, 49, 29, 0.15) 72%),
+                repeating-linear-gradient(0deg, rgba(103, 61, 35, 0.08) 0 2px, transparent 2px 52px),
+                #d8bd91;
+        }
+
+        #dressup-room::before {
+            content: '';
+            position: absolute;
+            left: 4%;
+            top: 7%;
+            width: 105px;
+            height: 145px;
+            border: 9px solid #704026;
+            background: repeating-linear-gradient(90deg, #a9d0cf 0 28px, #6f4933 28px 34px);
+            box-shadow: inset 0 0 22px rgba(255, 244, 190, 0.8);
+        }
+
+        .dressup-side, #dressup-model-stage, #dressup-closet {
+            position: relative;
+            z-index: 1;
+        }
+
+        .dressup-side {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 14px;
+        }
+
+        #armor-bin {
+            width: 118px;
+            min-height: 118px;
+            display: grid;
+            place-items: center;
+            padding: 10px;
+            border: 4px dashed #7c2d12;
+            border-radius: 16px;
+            background: rgba(255, 247, 220, 0.82);
+            font-weight: 900;
+            text-align: center;
+        }
+
+        #armor-bin.drop-ready, #dressup-model-stage.drop-ready, #forehead-target.drop-ready {
+            outline: 5px solid rgba(250, 204, 21, 0.8);
+            animation: dressup-pulse 0.7s ease-in-out infinite alternate;
+        }
+
+        #dressup-model-stage {
+            align-self: stretch;
+            min-height: 515px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 48% 48% 18px 18px;
+            background: radial-gradient(ellipse at 50% 36%, rgba(255,255,255,.72), rgba(145,92,52,.16) 58%, rgba(74,40,24,.25));
+            box-shadow: inset 0 0 0 8px rgba(113, 63, 34, 0.28);
+        }
+
+        #dressup-doll {
+            position: relative;
+            width: min(94%, 390px);
+            height: 500px;
+        }
+
+        #dressup-mulan {
+            position: absolute;
+            z-index: 2;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            object-position: center;
+            user-select: none;
+            touch-action: none;
+            cursor: grab;
+            filter: drop-shadow(0 8px 7px rgba(52, 30, 20, 0.42));
+        }
+
+        #undressed-label {
+            position: absolute;
+            left: 50%;
+            top: 48%;
+            transform: translate(-50%, -50%);
+            padding: 8px 14px;
+            border-radius: 999px;
+            background: rgba(72, 42, 28, 0.88);
+            color: #fff4d6;
+            font-weight: 900;
+        }
+
+        #hair-target {
+            position: absolute;
+            z-index: 4;
+            left: 31%;
+            top: 5%;
+            width: 38%;
+            height: 31%;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        #forehead-target {
+            position: absolute;
+            z-index: 5;
+            left: 47%;
+            top: 19%;
+            width: 48px;
+            height: 42px;
+            transform: translateX(-50%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        #forehead-flower {
+            position: absolute;
+            z-index: 6;
+            left: 47%;
+            top: 22%;
+            width: 25px;
+            height: 25px;
+            transform: translate(-50%, -50%);
+            filter: drop-shadow(0 1px 1px rgba(92, 55, 18, 0.7));
+        }
+
+        #forehead-flower svg { display: block; width: 100%; height: 100%; }
+
+        #dressup-closet {
+            padding: 12px;
+            border: 8px solid #764528;
+            border-radius: 14px 14px 6px 6px;
+            background: #9b6641;
+            box-shadow: inset 0 0 0 3px #c7925f;
+        }
+
+        #wardrobe-door {
+            width: 100%;
+            min-height: 88px;
+            border: 3px solid #4f2b1d;
+            border-radius: 8px;
+            background: linear-gradient(90deg, #6f3e27 49%, #3d2118 50%, #6f3e27 51%);
+            color: #fff1d0;
+            font-size: 20px;
+            font-weight: 900;
+        }
+
+        #wardrobe-door:disabled { opacity: .55; cursor: not-allowed; }
+        #outfit-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-top: 9px; }
+        #outfit-options.hidden { display: none; }
+
+        .outfit-card, #dressup-comb, #dressup-ornament {
+            border: 2px solid #714128;
+            border-radius: 10px;
+            background: #fff4da;
+            color: #4b2c1e;
+            font-weight: 900;
+            cursor: grab;
+            touch-action: none;
+        }
+
+        .outfit-card { min-height: 125px; padding: 5px; font-size: 11px; }
+        .outfit-card img { width: 100%; height: 82px; object-fit: contain; pointer-events: none; }
+
+        #vanity-tools { margin-top: 12px; padding: 10px; border-radius: 10px; background: #603722; color: #fff0cf; text-align: center; }
+        #vanity-items { display: flex; justify-content: center; gap: 10px; margin-top: 8px; }
+        #dressup-comb, #dressup-ornament { min-width: 80px; padding: 9px; font-size: 28px; }
+        #dressup-comb img { display: block; width: 110px; height: 58px; object-fit: contain; pointer-events: none; }
+        #dressup-comb:disabled, #dressup-ornament:disabled { opacity: .35; cursor: not-allowed; }
+
+        #dressup-footer { padding: 12px 18px 16px; background: #f4e2c1; text-align: center; }
+        #dressup-status { min-height: 28px; font-weight: 900; color: #713f12; }
+        #dressup-finish { width: 100%; margin-top: 10px; padding: 10px 12px; border: 3px solid #f5d26b; border-radius: 12px; background: #9f1239; color: white; font-size: 20px; font-weight: 900; }
+
+        #dressup-reveal {
+            position: absolute;
+            z-index: 20;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            padding: 25px;
+            background: radial-gradient(circle, rgba(111, 60, 45, .5), rgba(17, 8, 6, .94));
+            color: #fff4d1;
+            text-align: center;
+        }
+
+        #dressup-reveal.hidden { display: none; }
+
+        #dressup-reveal > div { width: 100%; }
+        .dressup-companions { display: block; width: min(760px, 92%); max-height: 58vh; margin: 0 auto 10px; object-fit: contain; filter: drop-shadow(0 12px 12px rgba(0, 0, 0, .45)); }
+        #dressup-reveal h3 { font-size: clamp(30px, 5vw, 62px); color: #facc15; font-weight: 900; }
+        #dressup-reveal-next { max-width: 820px; margin-top: 14px; padding: 12px 22px; border: 3px solid #f5d26b; border-radius: 14px; background: #9f1239; color: #fff7db; font-size: clamp(16px, 2.1vw, 24px); font-weight: 900; line-height: 1.4; box-shadow: 0 8px 18px rgba(0, 0, 0, .4); }
+        #dressup-reveal-next:hover { background: #be123c; }
+        .dressup-drag-ghost { position: fixed; z-index: 9999; width: 100px; height: 120px; object-fit: contain; pointer-events: none; transform: translate(-50%, -50%) scale(1.05); filter: drop-shadow(0 7px 5px rgba(0,0,0,.45)); }
+
+        @keyframes dressup-pulse { to { filter: brightness(1.2); } }
+        @keyframes dressup-shake { 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+        .dressup-shake { animation: dressup-shake .28s ease-in-out 2; }
+
+        @media (max-width: 760px) {
+            #dressup-header { align-items: flex-start; padding: 8px 10px; }
+            #dressup-room { grid-template-columns: 80px minmax(145px, 1fr) 170px; min-height: 410px; padding: 8px; gap: 6px; }
+            #dressup-room::before { width: 60px; height: 90px; border-width: 5px; }
+            #dressup-model-stage { min-height: 390px; }
+            #dressup-doll { width: 100%; height: 380px; }
+            #armor-bin { width: 70px; min-height: 86px; padding: 4px; border-width: 3px; font-size: 10px; }
+            #dressup-closet { padding: 6px; border-width: 5px; }
+            #wardrobe-door { min-height: 58px; font-size: 13px; }
+            #outfit-options { gap: 3px; }
+            .outfit-card { min-height: 86px; padding: 2px; font-size: 7px; }
+            .outfit-card img { height: 55px; }
+            #vanity-tools { padding: 5px; font-size: 10px; }
+            #dressup-comb, #dressup-ornament { min-width: 55px; padding: 5px; font-size: 21px; }
+            #dressup-comb img { width: 70px; height: 38px; }
+            #dressup-footer { padding: 8px; font-size: 12px; }
+        }
+
+        #rabbit-arena {
+            position: relative;
+            height: 400px;
+            overflow: hidden;
+            border: 3px solid #76543b;
+            border-radius: 20px;
+            background:
+                radial-gradient(ellipse at 20% 80%, rgba(120, 90, 45, 0.45) 0 12%, transparent 13%),
+                radial-gradient(ellipse at 75% 30%, rgba(120, 90, 45, 0.35) 0 9%, transparent 10%),
+                linear-gradient(#66733d, #354424 72%, #292f1d);
+            box-shadow: inset 0 0 35px rgba(0, 0, 0, 0.55);
+        }
+
+        .rabbit-target {
+            position: absolute;
+            width: 92px;
+            height: 112px;
+            padding: 0;
+            border: 0;
+            background: transparent;
+            cursor: pointer;
+            animation: rabbit-roam var(--speed) ease-in-out infinite alternate;
+            z-index: 2;
+        }
+
+        .rabbit-target:hover { filter: brightness(1.12); }
+        .rabbit-target.revealed { animation-play-state: paused; cursor: default; z-index: 5; }
+
+        .rabbit-target img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            pointer-events: none;
+            filter: drop-shadow(0 7px 5px rgba(0, 0, 0, 0.4));
+        }
+
+        .rabbit-target.female img {
+            filter: drop-shadow(0 0 12px rgba(244, 182, 255, 0.9));
+            animation: rabbit-reveal 0.45s ease-out;
+        }
+
+        .rabbit-target.male img { animation: rabbit-kick 0.22s ease-in-out infinite alternate; }
+
+        @keyframes rabbit-roam {
+            from { transform: translate(0, 0) rotate(-2deg); }
+            to { transform: translate(var(--dx), var(--dy)) rotate(2deg); }
+        }
+
+        @keyframes rabbit-reveal {
+            from { transform: rotateY(90deg) scale(0.7); }
+            to { transform: rotateY(0) scale(1); }
+        }
+
+        @keyframes rabbit-kick {
+            from { transform: translateY(0) rotate(-3deg); }
+            to { transform: translateY(-9px) rotate(3deg); }
+        }
+
+        #river-dream-stage {
+            position: relative;
+            width: min(100%, 1000px);
+            aspect-ratio: 16 / 9;
+            overflow: hidden;
+            border: 4px solid #8b5e34;
+            border-radius: 24px;
+            background: #07111d;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+        }
+
+        #river-dream-background {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #river-campfire-glow {
+            position: absolute;
+            left: 19%;
+            bottom: 4%;
+            width: 22%;
+            aspect-ratio: 1;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255, 193, 77, 0.36), rgba(255, 111, 20, 0.12) 42%, transparent 70%);
+            mix-blend-mode: screen;
+            pointer-events: none;
+            animation: campfire-flicker 0.7s ease-in-out infinite alternate;
+        }
+
+        .dream-bubble {
+            position: absolute;
+            top: 5%;
+            width: 31%;
+            padding: 8px;
+            border: 3px solid rgba(255, 210, 225, 0.92);
+            border-radius: 42% 46% 40% 48%;
+            background: rgba(255, 222, 232, 0.93);
+            color: #5d2939;
+            cursor: pointer;
+            box-shadow: 0 0 18px #f9a8d4, 0 0 40px rgba(251, 182, 206, 0.72);
+            animation: dream-float 3.2s ease-in-out infinite;
+            z-index: 4;
+        }
+
+        .dream-bubble::after {
+            content: '';
+            position: absolute;
+            width: 15px;
+            height: 15px;
+            bottom: -24px;
+            border-radius: 50%;
+            background: #ffd8e5;
+            box-shadow: 13px 18px 0 -4px rgba(255, 216, 229, 0.8);
+        }
+
+        .dream-bubble.mother { left: 3%; }
+        .dream-bubble.father { right: 3%; animation-delay: -1.3s; }
+        .dream-bubble.mother::after { right: 16%; }
+        .dream-bubble.father::after { left: 16%; }
+
+        .dream-bubble img {
+            width: 100%;
+            height: 145px;
+            object-fit: contain;
+            object-position: center;
+            border-radius: 36% 39% 18% 18%;
+            background: rgba(63, 39, 34, 0.92);
+            pointer-events: none;
+        }
+
+        .dream-bubble p {
+            min-height: 72px;
+            margin: 6px 7px 3px;
+            font-size: clamp(11px, 1.45vw, 15px);
+            font-weight: 900;
+            line-height: 1.45;
+            text-align: left;
+            pointer-events: none;
+        }
+
+        .dream-bubble.shattering {
+            pointer-events: none;
+            animation: bubble-shatter 0.5s ease-in forwards;
+        }
+
+        #dream-hammer {
+            position: absolute;
+            left: 50%;
+            bottom: 11%;
+            transform: translateX(-50%);
+            z-index: 7;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 8px 15px;
+            border: 2px solid #fcd34d;
+            border-radius: 999px;
+            background: rgba(74, 42, 25, 0.92);
+            color: #fff7d6;
+            font-weight: 900;
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.65);
+        }
+
+        #dream-hammer .hammer-icon { display: inline-block; font-size: 28px; }
+        #dream-hammer.hidden { display: none; }
+        #dream-hammer.equipped { background: #9a3412; box-shadow: 0 0 20px rgba(250, 204, 21, 0.9); }
+        #dream-hammer.equipped .hammer-icon { animation: hammer-ready 0.55s ease-in-out infinite alternate; }
+
+        #river-dream-status {
+            position: absolute;
+            left: 50%;
+            bottom: 2%;
+            transform: translateX(-50%);
+            z-index: 6;
+            width: 82%;
+            color: #fef3c7;
+            font-weight: 900;
+            text-align: center;
+            text-shadow: 0 2px 5px #000, 0 0 8px #000;
+            pointer-events: none;
+        }
+
+        .ochre-splash {
+            position: absolute;
+            z-index: 5;
+            width: 27%;
+            aspect-ratio: 1;
+            border-radius: 50% 38% 47% 35%;
+            background: radial-gradient(circle, rgba(211, 171, 92, 0.92), rgba(139, 104, 54, 0.55) 48%, transparent 70%);
+            mix-blend-mode: screen;
+            pointer-events: none;
+            animation: ochre-splash 0.75s ease-out forwards;
+        }
+
+        #river-reality {
+            position: absolute;
+            inset: 0;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 6%;
+            text-align: center;
+            background: radial-gradient(circle, rgba(151, 114, 56, 0.38), rgba(3, 12, 21, 0.9) 68%);
+            animation: river-reality-in 0.65s ease-out;
+        }
+
+        #river-reality.hidden { display: none; }
+        #river-pop { color: #e6c27a; font-size: clamp(38px, 8vw, 84px); font-weight: 900; text-shadow: 0 0 22px #9a6d2f; }
+        #river-reality h2 { margin: 14px 0 26px; color: #f5e6c8; font-size: clamp(27px, 5vw, 58px); font-weight: 900; text-shadow: 0 4px 8px #000, 0 0 22px #ad7c3b; }
+
+        @keyframes campfire-flicker {
+            from { transform: scale(0.9); opacity: 0.68; }
+            to { transform: scale(1.12) translateY(-3%); opacity: 1; }
+        }
+
+        @keyframes dream-float {
+            50% { transform: translateY(-9px) rotate(0.8deg); }
+        }
+
+        @keyframes hammer-ready {
+            to { transform: rotate(-20deg) translateY(-2px); }
+        }
+
+        @keyframes bubble-shatter {
+            45% { transform: scale(1.08) rotate(-2deg); filter: brightness(1.5); }
+            100% { transform: scale(0.18) rotate(14deg); opacity: 0; }
+        }
+
+        @keyframes ochre-splash {
+            from { transform: scale(0.15); opacity: 1; }
+            to { transform: scale(1.8); opacity: 0; }
+        }
+
+        @keyframes river-reality-in {
+            from { opacity: 0; transform: scale(1.08); }
+        }
+
+        #ride-stage {
+            --ride-progress: 0;
+            position: relative;
+            width: min(100%, 1000px);
+            aspect-ratio: 16 / 9;
+            overflow: hidden;
+            border: 4px solid #9a6a38;
+            border-radius: 24px;
+            background: #20170f;
+            box-shadow: 0 22px 65px rgba(0, 0, 0, 0.82);
+        }
+
+        #ride-background {
+            position: absolute;
+            inset: -2%;
+            width: 104%;
+            height: 104%;
+            object-fit: cover;
+            transition: filter 0.45s linear;
+            transform: translateX(calc(var(--ride-progress) * 0.03%)) scale(1.02);
+        }
+
+        #ride-sky-tint {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            pointer-events: none;
+            transition: background 0.5s linear;
+            mix-blend-mode: multiply;
+        }
+
+        #ride-stage.dawn #ride-sky-tint { background: rgba(247, 190, 91, 0.06); }
+        #ride-stage.noon #ride-sky-tint { background: rgba(255, 244, 188, 0.02); }
+        #ride-stage.sunset #ride-sky-tint { background: rgba(176, 62, 27, 0.25); }
+        #ride-stage.night #ride-sky-tint { background: rgba(5, 17, 53, 0.68); }
+        #ride-stage.night #ride-background { filter: brightness(0.62) saturate(0.82); }
+
+        #ride-hud {
+            position: absolute;
+            z-index: 8;
+            top: 3%;
+            left: 4%;
+            right: 4%;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 12px;
+            align-items: center;
+        }
+
+        #ride-route-labels {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: space-between;
+            color: #fff7d6;
+            font-weight: 900;
+            text-shadow: 0 2px 5px #000;
+        }
+
+        #ride-progress-track {
+            height: 22px;
+            overflow: hidden;
+            border: 3px solid #f5d08a;
+            border-radius: 999px;
+            background: rgba(22, 14, 10, 0.82);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.55);
+        }
+
+        #ride-progress-fill {
+            width: 0;
+            height: 100%;
+            margin-left: auto;
+            border-radius: inherit;
+            background: linear-gradient(to left, #eab308, #f97316, #dc2626);
+            transition: width 0.12s ease-out;
+        }
+
+        #ride-timer {
+            min-width: 105px;
+            padding: 6px 12px;
+            border: 2px solid #fecaca;
+            border-radius: 12px;
+            background: rgba(127, 29, 29, 0.9);
+            color: white;
+            font-size: clamp(17px, 2.4vw, 25px);
+            font-weight: 900;
+            text-align: center;
+        }
+
+        #ride-stage-title {
+            position: absolute;
+            z-index: 7;
+            top: 19%;
+            left: 4%;
+            padding: 7px 14px;
+            border-left: 5px solid #facc15;
+            border-radius: 8px;
+            background: rgba(21, 15, 11, 0.76);
+            color: #fff1b8;
+            font-size: clamp(15px, 2.2vw, 24px);
+            font-weight: 900;
+            text-shadow: 0 2px 4px #000;
+        }
+
+        #ride-mounted {
+            position: absolute;
+            z-index: 4;
+            left: 64%;
+            bottom: 10%;
+            width: 35%;
+            height: 49%;
+            filter: drop-shadow(0 10px 8px rgba(0, 0, 0, 0.55));
+            transition: left 0.16s linear;
+        }
+
+        #ride-horse {
+            position: absolute;
+            z-index: 2;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        #ride-mulan {
+            position: absolute;
+            z-index: 1;
+            left: 41%;
+            bottom: 38%;
+            width: 37%;
+            height: 85%;
+            object-fit: contain;
+        }
+
+        #ride-dust {
+            position: absolute;
+            z-index: 3;
+            left: 17%;
+            bottom: 3%;
+            width: 48%;
+            height: 28%;
+            opacity: 0;
+            background: radial-gradient(ellipse, rgba(203, 168, 113, 0.72), transparent 68%);
+            filter: blur(6px);
+        }
+
+        #ride-mounted.trot { animation: horse-trot 0.42s ease-in-out infinite alternate; }
+        #ride-mounted.gallop { animation: horse-gallop 0.22s ease-in-out infinite alternate; }
+        #ride-stage.ambush #ride-mounted.gallop { animation: horse-gallop-fast 0.12s linear infinite alternate; }
+        #ride-mounted.dodging { animation: horse-dodge 0.42s ease-out !important; }
+        #ride-mounted.gallop #ride-dust { opacity: 0.72; animation: dust-pulse 0.45s ease-out infinite; }
+        #ride-mounted.braking { animation: horse-brake 0.6s ease-out forwards; }
+
+        #ride-ready-hint {
+            position: absolute;
+            z-index: 7;
+            left: 50%;
+            bottom: 23%;
+            transform: translateX(-50%);
+            width: max-content;
+            max-width: 82%;
+            padding: 8px 16px;
+            border-radius: 999px;
+            background: rgba(20, 13, 9, 0.84);
+            color: #fff7d6;
+            font-weight: 900;
+            text-align: center;
+            text-shadow: 0 2px 4px #000;
+        }
+
+        #ride-controls {
+            position: absolute;
+            z-index: 9;
+            left: 50%;
+            bottom: 4%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 14px;
+        }
+
+        #ride-fast-button {
+            min-width: 150px;
+            padding: 12px 28px;
+            border: 3px solid #fff3b0;
+            border-radius: 999px;
+            background: linear-gradient(#dc2626, #991b1b);
+            color: white;
+            font-size: clamp(18px, 2.7vw, 28px);
+            font-weight: 900;
+            box-shadow: 0 7px 0 #5b160f, 0 10px 24px rgba(0, 0, 0, 0.55);
+            transition: transform 0.1s ease-out;
+        }
+
+        #ride-fast-button:active { box-shadow: 0 2px 0 #5b160f; margin-bottom: -5px; }
+
+        #ride-dodge-button {
+            min-width: 150px;
+            padding: 12px 28px;
+            border: 3px solid #bfdbfe;
+            border-radius: 999px;
+            background: linear-gradient(#2563eb, #1e3a8a);
+            color: white;
+            font-size: clamp(18px, 2.7vw, 28px);
+            font-weight: 900;
+            box-shadow: 0 7px 0 #172554, 0 10px 24px rgba(0, 0, 0, 0.55);
+        }
+
+        #ride-dodge-button:active { box-shadow: 0 2px 0 #172554; margin-bottom: -5px; }
+        #ride-dodge-button.hidden, #ride-arrow.hidden, #ride-ambush-warning.hidden { display: none; }
+
+        #ride-arrow {
+            position: absolute;
+            z-index: 8;
+            left: -13%;
+            top: 43%;
+            color: #2a160c;
+            font-size: clamp(46px, 8vw, 92px);
+            font-weight: 900;
+            line-height: 1;
+            text-shadow: 0 2px 0 #e7c98c, 0 5px 8px rgba(0, 0, 0, .7);
+            pointer-events: none;
+        }
+
+        #ride-arrow.flying { animation: enemy-arrow-flight 0.95s linear forwards; }
+
+        #ride-ambush-warning {
+            position: absolute;
+            z-index: 11;
+            top: 29%;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 8px 17px;
+            border: 3px solid #fecaca;
+            border-radius: 999px;
+            background: rgba(127, 29, 29, .94);
+            color: white;
+            font-size: clamp(15px, 2.2vw, 24px);
+            font-weight: 900;
+            text-align: center;
+            text-shadow: 0 2px 4px #000;
+            pointer-events: none;
+        }
+
+        #ride-ambush-warning.success { border-color: #bbf7d0; background: rgba(21, 128, 61, .94); }
+        #ride-stage.ride-hit { animation: ride-hit-flash 0.34s ease-out; }
+
+        #ride-result-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 15;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 7%;
+            text-align: center;
+            background: radial-gradient(circle, rgba(74, 48, 27, 0.38), rgba(5, 10, 18, 0.92));
+            animation: river-reality-in 0.55s ease-out;
+        }
+
+        #ride-result-overlay.hidden { display: none; }
+        #ride-result-title { color: #facc15; font-size: clamp(23px, 4.4vw, 48px); font-weight: 900; text-shadow: 0 4px 8px #000; }
+        #ride-result-poem { margin: 14px 0 22px; color: #fff7d6; font-size: clamp(17px, 3vw, 31px); font-weight: 900; line-height: 1.6; text-shadow: 0 3px 6px #000; }
+        #ride-result-action.hidden { display: none; }
+        .ride-question-option.selected { border-color: #facc15; background: #78350f; box-shadow: inset 0 0 0 2px rgba(254, 240, 138, .45); }
+
+        @keyframes horse-trot {
+            from { transform: translateY(0) rotate(-0.8deg); }
+            to { transform: translateY(-6px) rotate(0.8deg); }
+        }
+
+        @keyframes horse-gallop {
+            from { transform: translateY(1px) rotate(-1.2deg) scaleX(1); }
+            to { transform: translateY(-9px) rotate(1deg) scaleX(1.025); }
+        }
+
+        @keyframes horse-gallop-fast {
+            from { transform: translateY(1px) rotate(-0.7deg) scaleX(1); }
+            to { transform: translateY(-6px) rotate(0.7deg) scaleX(1.018); }
+        }
+
+        @keyframes horse-dodge {
+            45% { transform: translateY(-24px) rotate(-3deg); }
+            100% { transform: translateY(0) rotate(0); }
+        }
+
+        @keyframes horse-brake {
+            45% { transform: translateX(-20px) rotate(-5deg); }
+            100% { transform: translateX(0) rotate(0); }
+        }
+
+        @keyframes dust-pulse {
+            from { transform: translateX(15%) scale(0.7); opacity: 0.75; }
+            to { transform: translateX(0) scale(1.2); opacity: 0; }
+        }
+
+        @keyframes enemy-arrow-flight {
+            from { left: -13%; transform: translateY(0); }
+            to { left: 108%; transform: translateY(-18px); }
+        }
+
+        @keyframes ride-hit-flash {
+            40% { box-shadow: inset 0 0 0 12px rgba(220, 38, 38, .72), 0 22px 65px rgba(0, 0, 0, .82); }
+        }
+
+        #palace-catch-stage {
+            position: relative;
+            width: min(100%, 1000px);
+            aspect-ratio: 16 / 9;
+            overflow: hidden;
+            border: 4px solid #b7792b;
+            border-radius: 24px;
+            background:
+                linear-gradient(90deg, transparent 9%, #8f231d 9% 13%, transparent 13% 87%, #8f231d 87% 91%, transparent 91%),
+                linear-gradient(#d4a85b 0 19%, #9c6835 19% 22%, #d7b878 22% 68%, #8f6b45 68% 72%, #b99259 72%);
+            box-shadow: inset 0 0 55px rgba(45, 24, 13, 0.55), 0 22px 65px rgba(0, 0, 0, 0.82);
+            touch-action: none;
+        }
+
+        #palace-catch-stage::before {
+            content: '';
+            position: absolute;
+            z-index: 1;
+            left: 0;
+            right: 0;
+            top: 12%;
+            height: 8%;
+            background: repeating-linear-gradient(90deg, #73421f 0 42px, #c9943f 42px 49px);
+            border-top: 6px solid #4a2a18;
+            border-bottom: 5px solid #6e3b1d;
+        }
+
+        #palace-door {
+            position: absolute;
+            z-index: 2;
+            left: 35%;
+            top: 22%;
+            width: 30%;
+            height: 51%;
+            display: flex;
+            overflow: hidden;
+            border: 8px solid #553019;
+            border-bottom: 0;
+            background: #1f1510;
+            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.58);
+        }
+
+        .palace-door-panel {
+            width: 50%;
+            height: 100%;
+            border: 3px solid #f1c66b;
+            background:
+                radial-gradient(circle at 50% 45%, #f4c95d 0 7px, transparent 8px),
+                repeating-linear-gradient(90deg, #7f1d1d 0 28px, #991b1b 28px 31px);
+            transition: transform 0.9s cubic-bezier(.2,.8,.2,1);
+        }
+
+        #palace-door.open .palace-door-panel:first-child { transform: translateX(-102%); }
+        #palace-door.open .palace-door-panel:last-child { transform: translateX(102%); }
+
+        #palace-score-card {
+            position: absolute;
+            z-index: 9;
+            top: 3%;
+            left: 3%;
+            padding: 8px 16px;
+            border: 3px solid #facc15;
+            border-radius: 14px;
+            background: rgba(73, 37, 17, 0.9);
+            color: #fff7d6;
+            font-weight: 900;
+            box-shadow: 0 5px 16px rgba(0, 0, 0, 0.55);
+        }
+
+        #palace-score { color: #facc15; font-size: clamp(26px, 4vw, 42px); }
+
+        #palace-catch-status {
+            position: absolute;
+            z-index: 9;
+            top: 5%;
+            right: 3%;
+            max-width: 53%;
+            color: #3f210f;
+            font-size: clamp(12px, 1.8vw, 18px);
+            font-weight: 900;
+            text-align: right;
+        }
+
+        #palace-catch-field {
+            position: absolute;
+            z-index: 5;
+            inset: 14% 0 0;
+            overflow: hidden;
+        }
+
+        .falling-reward {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 78px;
+            min-height: 76px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid rgba(255, 246, 199, 0.88);
+            border-radius: 18px;
+            background: rgba(67, 39, 23, 0.88);
+            color: #fff7d6;
+            font-size: 38px;
+            line-height: 1;
+            text-align: center;
+            box-shadow: 0 5px 13px rgba(0, 0, 0, 0.48);
+            pointer-events: none;
+            will-change: transform;
+        }
+
+        .falling-reward span {
+            margin-top: 5px;
+            font-size: 11px;
+            font-weight: 900;
+            line-height: 1.15;
+        }
+
+        .falling-reward img {
+            width: 48px;
+            height: 48px;
+            object-fit: contain;
+            filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.45));
+        }
+
+        .falling-reward.positive { border-color: #86efac; box-shadow: 0 0 15px rgba(74, 222, 128, 0.55); }
+        .falling-reward.negative { border-color: #fca5a5; box-shadow: 0 0 15px rgba(248, 113, 113, 0.5); }
+
+        #palace-catcher {
+            position: absolute;
+            z-index: 8;
+            left: 50%;
+            bottom: 1%;
+            width: 210px;
+            height: 128px;
+            transform: translateX(-50%);
+            transition: left 0.08s linear;
+            pointer-events: none;
+        }
+
+        #palace-catcher img {
+            position: absolute;
+            z-index: 1;
+            left: 0;
+            bottom: 0;
+            width: 82px;
+            height: 125px;
+            object-fit: contain;
+            filter: drop-shadow(0 5px 5px rgba(0, 0, 0, 0.45));
+        }
+
+        #palace-cart {
+            position: absolute;
+            z-index: 2;
+            right: 0;
+            bottom: 7px;
+            width: 142px;
+            height: 72px;
+            border: 6px solid #4c2d19;
+            border-top: 0;
+            border-radius: 0 0 18px 18px;
+            background: repeating-linear-gradient(#a86b32 0 13px, #73421f 13px 17px);
+            box-shadow: inset 0 0 12px rgba(255, 207, 124, 0.45), 0 5px 7px rgba(0, 0, 0, 0.42);
+        }
+
+        #palace-cart::before,
+        #palace-cart::after {
+            content: '';
+            position: absolute;
+            bottom: -24px;
+            width: 31px;
+            height: 31px;
+            border: 6px solid #3e2415;
+            border-radius: 50%;
+            background: #96602f;
+        }
+
+        #palace-cart::before { left: 12px; }
+        #palace-cart::after { right: 12px; }
+
+        #palace-start-overlay,
+        #palace-success-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 15;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 5%;
+            background: rgba(20, 12, 8, 0.9);
+            color: #fff7d6;
+            text-align: center;
+        }
+
+        #palace-start-overlay.hidden,
+        #palace-success-overlay.hidden { display: none; }
+
+        #palace-reward-guide {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            width: min(100%, 820px);
+            margin: 16px 0;
+        }
+
+        .palace-guide-item {
+            padding: 9px 5px;
+            border: 1px solid #a97845;
+            border-radius: 12px;
+            background: #352318;
+            font-size: clamp(11px, 1.5vw, 15px);
+            font-weight: 900;
+        }
+
+        .palace-guide-item b { display: block; margin-bottom: 5px; font-size: 28px; }
+        .palace-guide-item img {
+            display: block;
+            width: 36px;
+            height: 36px;
+            margin: 0 auto 5px;
+            object-fit: contain;
+        }
+        #palace-success-overlay { background: radial-gradient(circle, rgba(122, 73, 25, 0.5), rgba(13, 9, 6, 0.92)); }
+        #palace-success-overlay h2 { color: #facc15; font-size: clamp(30px, 5vw, 58px); font-weight: 900; text-shadow: 0 0 20px #c47c23; }
+
+        @keyframes reward-caught {
+            to { transform: translateY(-20px) scale(1.45); opacity: 0; }
+        }
+
+        #home-scene-frame {
+            position: relative;
+            width: min(100%, 1000px);
+            aspect-ratio: 16 / 9;
+            overflow: hidden;
+            border: 4px solid #d97706;
+            border-radius: 24px;
+            box-shadow: 0 20px 55px rgba(0, 0, 0, 0.75);
+        }
+
+        #home-scene-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #home-scene-image.outfit-scene {
+            transform: translateX(4%) scale(1.08);
+        }
+
+        #home-expression-button {
+            position: absolute;
+            width: 26%;
+            aspect-ratio: 1;
+            right: 9%;
+            top: 6%;
+            border: 0;
+            border-radius: 50%;
+            background: transparent;
+            box-shadow: 0 0 0 5px rgba(254, 240, 138, 0.7), 0 0 0 12px rgba(250, 204, 21, 0.1), 0 0 30px rgba(250, 204, 21, 0.75);
+            animation: home-face-pulse 1.4s ease-in-out infinite;
+        }
+
+        #home-expression-button:hover { background: rgba(250, 204, 21, 0.08); }
+
+        #home-poem-card {
+            position: absolute;
+            left: 4%;
+            top: 42%;
+            width: 39%;
+            padding: 18px 22px;
+            border-left: 5px solid #eab308;
+            border-radius: 12px;
+            background: rgba(20, 15, 12, 0.88);
+            color: #fff7d6;
+            font-size: clamp(15px, 2vw, 23px);
+            font-weight: 700;
+            line-height: 1.8;
+            text-shadow: 0 2px 3px black;
+        }
+
+        #home-success-panel {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 5%;
+            background: linear-gradient(90deg, rgba(10, 8, 6, 0.94) 0 47%, rgba(10, 8, 6, 0.08) 72%);
+        }
+
+        #home-success-panel.hidden { display: none; }
+
+        @keyframes home-face-pulse {
+            50% { transform: scale(1.06); box-shadow: 0 0 0 11px rgba(250, 204, 21, 0.08), 0 0 38px rgba(250, 204, 21, 0.95); }
+        }
+
+        @media (max-width: 640px) {
+            #home-poem-card { width: 48%; top: 36%; padding: 10px 12px; line-height: 1.55; }
+            #home-expression-button { width: 30%; right: 6%; top: 5%; }
+            .dream-bubble { width: 36%; top: 3%; padding: 5px; }
+            .dream-bubble.mother { left: 1.5%; }
+            .dream-bubble.father { right: 1.5%; }
+            .dream-bubble img { height: 74px; }
+            .dream-bubble p { min-height: 55px; margin: 3px; font-size: 9px; line-height: 1.25; }
+            #dream-hammer { padding: 5px 10px; font-size: 11px; }
+            #dream-hammer .hammer-icon { font-size: 21px; }
+            #ride-hud { top: 2%; left: 3%; right: 3%; gap: 6px; }
+            #ride-route-labels { font-size: 9px; }
+            #ride-progress-track { height: 14px; border-width: 2px; }
+            #ride-timer { min-width: 70px; padding: 3px 6px; font-size: 12px; }
+            #ride-stage-title { top: 20%; left: 3%; padding: 4px 8px; font-size: 11px; }
+            #ride-mounted { width: 39%; height: 52%; bottom: 8%; }
+            #ride-ready-hint { bottom: 27%; padding: 4px 8px; font-size: 9px; }
+            #ride-controls { bottom: 3%; gap: 7px; }
+            #ride-fast-button { min-width: 90px; padding: 5px 14px; border-width: 2px; font-size: 13px; box-shadow: 0 4px 0 #5b160f; }
+            #ride-dodge-button { min-width: 90px; padding: 5px 14px; border-width: 2px; font-size: 13px; box-shadow: 0 4px 0 #172554; }
+            #ride-ambush-warning { top: 28%; padding: 4px 9px; border-width: 2px; font-size: 11px; }
+            #palace-score-card { top: 2%; left: 2%; padding: 4px 8px; font-size: 10px; }
+            #palace-catch-status { top: 4%; right: 2%; font-size: 9px; }
+            .falling-reward { width: 48px; min-height: 48px; border-radius: 10px; font-size: 24px; }
+            .falling-reward span { font-size: 7px; }
+            .falling-reward img { width: 29px; height: 29px; }
+            #palace-catcher { width: 125px; height: 76px; }
+            #palace-catcher img { width: 48px; height: 74px; }
+            #palace-cart { width: 85px; height: 43px; border-width: 4px; }
+            #palace-cart::before, #palace-cart::after { bottom: -15px; width: 19px; height: 19px; border-width: 4px; }
+            #palace-reward-guide { gap: 3px; margin: 7px 0; }
+            .palace-guide-item { padding: 4px 2px; font-size: 7px; }
+            .palace-guide-item b { margin-bottom: 2px; font-size: 18px; }
+            .palace-guide-item img { width: 23px; height: 23px; margin-bottom: 2px; }
+        }
+        #battle-stage {
+            position: relative;
+            width: min(1180px, 100%);
+            height: min(92vh, 720px);
+            overflow: hidden;
+            border: 5px solid #facc15;
+            border-radius: 18px;
+            background: #111827;
+            box-shadow: 0 0 0 4px #7f1d1d, 0 25px 70px rgba(0, 0, 0, .85);
+            image-rendering: pixelated;
+        }
+
+        #battle-background {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: saturate(1.12) contrast(1.05);
+        }
+
+        #battle-stage::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background:
+                linear-gradient(rgba(255,255,255,.04) 50%, rgba(0,0,0,.06) 50%),
+                radial-gradient(circle at center, transparent 50%, rgba(0,0,0,.5));
+            background-size: 100% 4px, 100% 100%;
+            mix-blend-mode: overlay;
+        }
+
+        #battle-hud {
+            position: absolute;
+            top: 14px;
+            left: 18px;
+            right: 18px;
+            z-index: 5;
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: center;
+            gap: 12px;
+            font-family: Impact, "Noto Serif TC", serif;
+        }
+
+        .battle-name {
+            margin-bottom: 4px;
+            color: #fef3c7;
+            font-size: clamp(16px, 2.2vw, 26px);
+            letter-spacing: .06em;
+            text-shadow: 3px 3px 0 #111827;
+        }
+
+        .battle-name.player { text-align: right; }
+
+        .battle-hp-track {
+            height: 24px;
+            border: 3px solid #111827;
+            background: #450a0a;
+            box-shadow: inset 0 0 0 2px #fef08a;
+        }
+
+        .battle-hp-fill {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, #22c55e, #facc15);
+            transition: width .35s ease;
+        }
+
+        #battle-mulan-hp-fill {
+            margin-left: auto;
+        }
+
+        #battle-enemy-hp-fill {
+            background: linear-gradient(90deg, #facc15, #ef4444);
+        }
+
+        #battle-ko-badge {
+            padding: 5px 14px;
+            border: 4px solid #fef08a;
+            border-radius: 8px;
+            background: #111827;
+            color: #f97316;
+            font-size: clamp(30px, 5vw, 58px);
+            line-height: 1;
+            text-shadow: 3px 3px 0 #7f1d1d;
+        }
+
+        #battle-title-card {
+            position: absolute;
+            top: 88px;
+            left: 50%;
+            z-index: 5;
+            transform: translateX(-50%);
+            min-width: min(760px, 92%);
+            padding: 8px 16px;
+            border: 3px solid #facc15;
+            border-radius: 12px;
+            background: rgba(17, 24, 39, .82);
+            color: #fef3c7;
+            text-align: center;
+            font-weight: 900;
+            text-shadow: 2px 2px 0 #111827;
+        }
+
+        #battle-title {
+            font-size: clamp(17px, 2.3vw, 28px);
+        }
+
+        .battle-fighter {
+            position: absolute;
+            z-index: 3;
+            bottom: 180px;
+            width: min(26vw, 250px);
+            max-height: 45%;
+            object-fit: contain;
+            filter: drop-shadow(0 12px 12px rgba(0, 0, 0, .85));
+            transition: transform .16s ease;
+        }
+
+        #battle-mulan {
+            right: 10%;
+            transform: scaleX(-1);
+        }
+
+        #battle-enemy {
+            left: 8%;
+            width: min(29vw, 278px);
+        }
+
+        #battle-projectile {
+            position: absolute;
+            left: 50%;
+            top: 40%;
+            z-index: 6;
+            pointer-events: none;
+            width: clamp(82px, 12vw, 150px);
+            object-fit: contain;
+            image-rendering: pixelated;
+            filter: drop-shadow(0 0 12px #fef08a) drop-shadow(0 8px 8px rgba(0,0,0,.8));
+            opacity: 0;
+        }
+
+        #battle-projectile.weapon-arrow {
+            width: clamp(150px, 23vw, 270px);
+        }
+
+        #battle-projectile.from-right {
+            animation: weapon-from-right .72s ease-in forwards;
+        }
+
+        #battle-projectile.from-left {
+            animation: weapon-from-left .72s ease-in forwards;
+        }
+
+        #battle-question-panel {
+            position: absolute;
+            left: 24px;
+            right: 24px;
+            bottom: 18px;
+            z-index: 7;
+            max-height: 34%;
+            overflow-y: auto;
+            padding: 16px;
+            border: 4px solid #facc15;
+            border-radius: 16px;
+            background: rgba(15, 23, 42, .92);
+            box-shadow: inset 0 0 22px rgba(250, 204, 21, .12);
+        }
+
+        #battle-question {
+            margin-bottom: 10px;
+            color: #f8fafc;
+            font-size: clamp(16px, 2vw, 22px);
+            font-weight: 900;
+            line-height: 1.55;
+        }
+
+        #battle-options {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .battle-option {
+            padding: 10px 12px;
+            border: 3px solid #64748b;
+            border-radius: 10px;
+            background: #1e293b;
+            color: #f8fafc;
+            font-size: clamp(14px, 1.7vw, 18px);
+            font-weight: 900;
+            text-align: left;
+            transition: transform .12s ease, background .12s ease;
+        }
+
+        .battle-option:hover:not(:disabled) {
+            transform: translateY(-2px);
+            background: #334155;
+            border-color: #facc15;
+        }
+
+        .battle-option:disabled {
+            cursor: default;
+            opacity: .72;
+        }
+
+        #battle-feedback {
+            min-height: 28px;
+            margin-top: 10px;
+            color: #fef3c7;
+            font-size: clamp(15px, 1.8vw, 20px);
+            font-weight: 900;
+        }
+
+        #battle-result-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: rgba(0, 0, 0, .74);
+            text-align: center;
+        }
+
+        #battle-result-overlay.hidden { display: none; }
+
+        #battle-result-title {
+            color: #facc15;
+            font-family: Impact, "Noto Serif TC", serif;
+            font-size: clamp(34px, 7vw, 84px);
+            text-shadow: 5px 5px 0 #7f1d1d;
+        }
+
+        #battle-result-detail {
+            max-width: 760px;
+            margin: 12px 0 24px;
+            color: #fef3c7;
+            font-size: clamp(18px, 2.5vw, 30px);
+            font-weight: 900;
+            line-height: 1.5;
+        }
+
+        #battle-result-button {
+            border: 3px solid #fef08a;
+            border-radius: 12px;
+            background: #b91c1c;
+            color: white;
+            padding: 12px 36px;
+            font-size: clamp(18px, 2.4vw, 28px);
+            font-weight: 900;
+            box-shadow: 0 7px 0 #7f1d1d;
+        }
+
+        .battle-mulan-attack { animation: mulan-attack .55s ease-out; }
+        .battle-enemy-attack { animation: enemy-attack .55s ease-out; }
+        .battle-hit { animation: battle-hit .45s ease-out; }
+        #battle-enemy.battle-hit { animation: battle-enemy-hit .45s ease-out; }
+        #battle-mulan.battle-hit { animation: battle-mulan-hit .45s ease-out; }
+
+        @keyframes mulan-attack {
+            0%, 100% { transform: scaleX(-1) translateX(0); }
+            45% { transform: scaleX(-1) translateX(120px) rotate(4deg); }
+        }
+
+        @keyframes enemy-attack {
+            0%, 100% { transform: translateX(0); }
+            45% { transform: translateX(120px) rotate(-4deg); }
+        }
+
+        @keyframes battle-hit {
+            0%, 100% { filter: drop-shadow(0 12px 12px rgba(0,0,0,.85)); }
+            20%, 60% { filter: drop-shadow(0 0 18px #fef08a) brightness(1.9); }
+            40%, 80% { transform: translateX(12px); }
+        }
+
+        @keyframes battle-enemy-hit {
+            0%, 100% { filter: drop-shadow(0 12px 12px rgba(0,0,0,.85)); }
+            20%, 60% { filter: drop-shadow(0 0 18px #fef08a) brightness(1.9); }
+            40%, 80% { transform: translateX(-12px); }
+        }
+
+        @keyframes battle-mulan-hit {
+            0%, 100% { transform: scaleX(-1); filter: drop-shadow(0 12px 12px rgba(0,0,0,.85)); }
+            20%, 60% { transform: scaleX(-1); filter: drop-shadow(0 0 18px #fef08a) brightness(1.9); }
+            40%, 80% { transform: scaleX(-1) translateX(-12px); }
+        }
+
+        @keyframes weapon-from-right {
+            0% { opacity: 1; transform: translate(31vw, -45%) scaleX(-1) rotate(5deg) scale(.72); }
+            78% { opacity: 1; transform: translate(-30vw, -58%) scaleX(-1) rotate(-28deg) scale(1.08); }
+            100% { opacity: 0; transform: translate(-34vw, -60%) scaleX(-1) rotate(-34deg) scale(1.12); }
+        }
+
+        @keyframes weapon-from-left {
+            0% { opacity: 1; transform: translate(-31vw, -45%) rotate(-5deg) scale(.72); }
+            78% { opacity: 1; transform: translate(30vw, -58%) rotate(28deg) scale(1.08); }
+            100% { opacity: 0; transform: translate(34vw, -60%) rotate(34deg) scale(1.12); }
+        }
+
+        @media (max-width: 760px) {
+            #battle-stage { height: 96vh; }
+            #battle-hud { top: 8px; left: 8px; right: 8px; gap: 6px; }
+            .battle-hp-track { height: 18px; }
+            #battle-title-card { top: 70px; }
+            .battle-fighter { bottom: 285px; width: 34vw; max-height: 35%; }
+            #battle-enemy { width: 36vw; }
+            #battle-question-panel { left: 8px; right: 8px; bottom: 8px; max-height: 44%; padding: 12px; }
+            #battle-options { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container" class="flex flex-col justify-between overflow-hidden shadow-2xl">
+
+    <!-- 全局頂部欄 (HUD) -->
+    <header class="bg-[#1c1815] border-b-2 border-[#3d2e24] px-6 py-3 flex justify-between items-center z-40 shadow-md">
+        <div class="flex items-center gap-3">
+            <span class="text-2xl">🏮</span>
+            <h1 class="text-xl md:text-2xl font-black tracking-wider text-[#d9a05b] font-serif">木蘭的英雄之旅</h1>
+        </div>
+        <div class="flex items-center gap-4">
+            <div id="hud" class="hidden bg-[#2d1e15] border border-[#d97706] text-[#f5f5f4] px-4 py-1.5 rounded-lg text-lg md:text-xl font-mono font-bold shadow">
+                ❌ <span id="mistakes-display">0</span>　⏱️ <span id="timer-display">00:00.000</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主遊戲舞台 (維持 4:3 比例的大地圖) -->
+    <main class="flex-1 flex justify-center items-center bg-[#090807] p-4 relative">
+        <div class="w-full max-w-[1000px] aspect-[4/3] relative rounded-xl border-4 border-[#3e2c1e] overflow-hidden shadow-inner" id="map-frame">
+            <div id="world-map">
+                <!-- 玩家角色 (人物.png) -->
+                <img id="player-sprite" src="人物-去背.png" alt="木蘭" onerror="fallbackPlayer(this)">
+                
+                <!-- 節點置放處 -->
+                <div id="nodes-container"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 浮動懲罰提示 -->
+    <div id="penalty-toast" class="hidden absolute top-20 right-6 bg-[#991b1b] text-white px-5 py-3 rounded-xl shadow-2xl font-bold text-lg z-50 transition-all duration-300 opacity-0 border-2 border-red-300">
+        ⚡ 答錯！懲罰 +5 秒
+    </div>
+
+    <!-- 標題畫面 -->
+    <div id="screen-title" class="screen active">
+        <div id="title-cover-frame">
+            <img id="title-cover-image" src="木蘭英雄之旅-遊戲封面.png" alt="木蘭的英雄之旅遊戲封面">
+            <button id="start-button" type="button" onclick="startGame()">應下軍帖，即刻啟程</button>
+        </div>
+    </div>
+
+    <!-- 第一關：木蘭家情境 -->
+    <div id="screen-home" class="screen bg-black/90 flex flex-col justify-center items-center p-3">
+        <div id="home-scene-frame">
+            <img id="home-scene-image" src="木蘭家-憂愁織布.png" alt="木蘭在夜裡停下織布，神情憂愁地嘆息">
+            <div id="home-poem-card">
+                「唧唧復唧唧，木蘭當戶織。<br>
+                不聞機杼聲，惟聞女嘆息。」
+            </div>
+            <button id="home-expression-button" type="button" aria-label="點擊木蘭憂愁的表情">
+                <span class="absolute -bottom-11 left-1/2 -translate-x-1/2 whitespace-nowrap bg-[#7c2d12] border border-[#fef08a] text-white rounded-full px-4 py-1.5 font-bold text-sm md:text-base">
+                    點擊木蘭的表情
+                </span>
+            </button>
+            <div id="home-success-panel" class="hidden">
+                <div class="max-w-md text-[#ece3d2]">
+                    <p id="home-success-title" class="text-[#86efac] text-xl md:text-2xl font-black mb-3"></p>
+                    <p id="home-success-description" class="leading-relaxed mb-5"></p>
+                    <div class="bg-[#3b2a1e] border-2 border-[#facc15] rounded-2xl p-4 mb-5 flex items-center gap-4 shadow-xl">
+                        <span id="home-item-icon" class="text-5xl"></span>
+                        <div><p class="text-sm text-[#d6c5b3]">獲得關鍵道具</p><p id="home-item-name" class="text-xl font-black text-[#facc15]"></p></div>
+                    </div>
+                    <button id="home-continue-button" type="button" class="bg-[#b91c1c] hover:bg-[#dc2626] text-white font-black py-3 px-7 rounded-xl border-b-4 border-[#7f1d1d]">
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 第一關：文本推論題 -->
+    <div id="screen-home-question" class="screen bg-black/85 flex flex-col justify-center items-center p-4">
+        <div class="bg-[#1e1511] p-5 md:p-7 rounded-3xl max-w-4xl w-full max-h-[95vh] overflow-y-auto shadow-2xl border-4 border-[#d97706] text-[#ece3d2]">
+            <p id="home-task-label" class="text-[#eab308] font-black mb-2"></p>
+
+            <div class="bg-[#2a1d17] p-4 md:p-5 rounded-xl mb-5 border-l-4 border-[#eab308] shadow-inner">
+                <span class="text-xs font-bold text-[#eab308] tracking-wider block mb-1">【對應古詩文本】</span>
+                <div id="home-question-text" class="font-serif text-base md:text-lg leading-relaxed text-[#f5f5f4]"></div>
+            </div>
+
+            <div class="mb-5">
+                <h2 id="home-question-prompt" class="text-xl md:text-2xl font-black text-[#fef08a] leading-relaxed"></h2>
+            </div>
+
+            <div id="home-question-options" class="grid gap-3"></div>
+            <div id="home-question-feedback" class="hidden mt-5 rounded-xl border-2 p-4 font-bold leading-relaxed whitespace-pre-line"></div>
+        </div>
+    </div>
+
+    <!-- 關卡問答彈跳視窗 (Modal) -->
+    <div id="screen-question" class="screen bg-black/80 flex flex-col justify-center items-center p-4">
+        <div class="bg-[#1e1511] p-6 md:p-8 rounded-3xl max-w-2xl w-full shadow-2xl relative border-4 border-[#d97706] text-[#ece3d2]">
+            <!-- 關卡標題 -->
+            <div class="absolute -top-6 left-1/2 transform -translate-x-1/2 bg-[#b91c1c] text-white px-8 py-2 rounded-full font-bold text-lg md:text-xl shadow-lg border-2 border-[#fef08a]" id="q-modal-title">
+                第一關：木蘭家
+            </div>
+            
+            <!-- 文本閱讀區 -->
+            <div class="bg-[#2a1d17] p-4 md:p-5 rounded-xl mt-6 mb-6 border-l-4 border-[#eab308] shadow-inner">
+                <span class="text-xs font-bold text-[#eab308] tracking-wider uppercase block mb-1">【對應古詩文本】</span>
+                <p class="text-base md:text-lg font-serif leading-relaxed text-[#f5f5f4]" id="q-modal-text"></p>
+            </div>
+
+            <!-- 題目區域 -->
+            <h3 class="text-xl md:text-2xl font-black mb-6 text-[#fef08a]" id="q-modal-q"></h3>
+            
+            <!-- 選項按鈕 -->
+            <div id="q-modal-options" class="flex flex-col gap-3">
+                <!-- 由 JS 動態生成 -->
+            </div>
+            <div id="q-modal-feedback" class="hidden mt-5 rounded-xl border-2 p-4 font-bold leading-relaxed"></div>
+        </div>
+    </div>
+
+    <!-- 第二關：市場採購挑戰 -->
+    <div id="screen-market" class="screen bg-black/85 flex flex-col justify-center items-center p-4">
+        <div class="bg-[#1e1511] p-5 md:p-7 rounded-3xl max-w-5xl w-full max-h-[94vh] overflow-y-auto shadow-2xl border-4 border-[#d97706] text-[#ece3d2]">
+            <div class="text-center mb-4">
+                <h2 class="text-2xl md:text-3xl font-black text-[#facc15]">第二關：市場採購</h2>
+                <p class="text-[#d6c5b3] mt-1">依詩句選對商品，為木蘭的戰馬備齊出征裝備。</p>
+            </div>
+
+            <div class="bg-[#2a1d17] px-4 py-3 rounded-xl mb-5 border-l-4 border-[#eab308] text-center text-base md:text-lg font-serif leading-relaxed">
+                東市買駿馬，西市買鞍韉，<br class="hidden md:block">
+                南市買轡頭，北市買長鞭。
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-5">
+                <section class="bg-[#291b14] rounded-2xl p-5 border border-[#76543b]">
+                    <div id="market-progress" class="grid grid-cols-4 gap-2 mb-5"></div>
+                    <p class="text-sm font-bold text-[#eab308] mb-1">當前商鋪</p>
+                    <h3 id="market-shop-name" class="text-3xl font-black mb-2"></h3>
+                    <p id="market-prompt" class="text-[#d6c5b3] mb-5"></p>
+                    <div id="market-options" class="grid gap-3"></div>
+                    <p id="market-status" class="mt-4 min-h-7 font-bold text-[#86efac]"></p>
+                </section>
+
+                <section class="bg-[#291b14] rounded-2xl p-5 border border-[#76543b]">
+                    <h3 class="text-xl font-black text-center text-[#fef08a] mb-3">戰馬裝備區</h3>
+                    <div id="market-horse-stage">
+                        <img id="market-mulan" class="market-character-image" src="人物-去背.png" alt="木蘭">
+                        <img id="market-mulan-whip" class="market-character-image hidden" src="木蘭-長鞭-去背.png" alt="手持長鞭的木蘭">
+                        <img id="market-horse" class="market-character-image hidden" src="馬匹-去背.png" alt="駿馬">
+                        <img id="equip-saddle" class="horse-equipment-image hidden" src="鞍韉-去背.png" alt="鞍韉">
+                        <img id="equip-bridle" class="horse-equipment-image hidden" src="轡頭-去背.png" alt="轡頭">
+                    </div>
+                    <p id="market-equipment-count" class="text-center mt-3 font-bold text-[#d6c5b3]">已採購 0 / 4</p>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <!-- 第二關任務二：四市採購的民歌手法 -->
+    <div id="screen-market-question" class="screen bg-black/85 flex flex-col justify-center items-center p-4">
+        <div class="bg-[#1e1511] p-5 md:p-7 rounded-3xl max-w-4xl w-full max-h-[95vh] overflow-y-auto shadow-2xl border-4 border-[#d97706] text-[#ece3d2]">
+            <p class="text-[#eab308] font-black mb-3">任務二　採購的祕密</p>
+
+            <div class="bg-[#2a1d17] p-4 md:p-5 rounded-xl mb-5 border-l-4 border-[#eab308] shadow-inner">
+                <span class="text-xs font-bold text-[#eab308] tracking-wider block mb-1">【對應古詩文本】</span>
+                <p class="font-serif text-base md:text-lg leading-relaxed text-[#f5f5f4]">東市買駿馬，西市買鞍韉，南市買轡頭，北市買長鞭。</p>
+            </div>
+
+            <div class="mb-5">
+                <h2 class="text-xl md:text-2xl font-black text-[#fef08a] leading-relaxed">呼～跑遍了各大市場，木蘭終於買齊了所有裝備！不過仔細想想，木蘭為什麼不直接在同一家店買齊，反而辛苦地跑遍東西南北市呢？</h2>
+            </div>
+
+            <div id="market-question-options" class="grid gap-3"></div>
+            <div id="market-question-feedback" class="hidden mt-5 rounded-xl border-2 p-4 font-bold leading-relaxed"></div>
+        </div>
+    </div>
+
+    <!-- 第二關：採購完成，騎馬出發 -->
+    <div id="screen-market-departure" class="screen bg-black/90 flex flex-col justify-center items-center p-3">
+        <div class="relative w-full max-w-[1000px] aspect-video overflow-hidden rounded-3xl border-4 border-[#d97706] shadow-2xl">
+            <img src="市場-木蘭騎馬出發.png" alt="木蘭穿著軍裝，騎著備有鞍韉與轡頭的馬，手持長鞭準備出發" class="w-full h-full object-cover">
+            <div class="absolute inset-0 flex items-center p-[6%] bg-gradient-to-r from-black/90 via-black/55 to-transparent">
+                <div class="max-w-sm text-[#ece3d2]">
+                    <h2 class="text-3xl md:text-4xl font-black text-[#facc15] mb-4">整裝待發</h2>
+                    <div class="text-lg md:text-xl leading-relaxed mb-7 space-y-3">
+                        <p>駿馬、鞍韉、轡頭與長鞭都已備齊。</p>
+                        <p>木蘭整裝上馬，準備踏上代父從軍的旅程。</p>
+                    </div>
+                    <button id="market-departure-button" type="button" class="bg-[#b91c1c] hover:bg-[#dc2626] text-white font-black py-3 px-10 rounded-xl text-xl border-b-4 border-[#7f1d1d] shadow-xl">
+                        出發
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 第三關：黃河夜夢入場題 -->
+    <div id="screen-river-question" class="screen bg-black/90 flex flex-col justify-center items-center p-4">
+        <div class="bg-[#1e1511] p-5 md:p-7 rounded-3xl max-w-4xl w-full max-h-[95vh] overflow-y-auto shadow-2xl border-4 border-[#8b5e34] text-[#ece3d2]">
+            <div class="bg-[#2a1d17] p-4 md:p-5 rounded-xl mb-5 border-l-4 border-[#eab308] shadow-inner">
+                <span class="text-xs font-bold text-[#eab308] tracking-wider block mb-2">【對應古詩文本】</span>
+                <p class="font-serif text-base md:text-lg leading-relaxed text-[#f5f5f4]">
+                    朝辭爺孃去，暮宿黃河邊，<br>
+                    不聞爺孃喚女聲，但聞黃河流水鳴濺濺。<br>
+                    旦辭黃河去，暮至黑山頭，<br>
+                    不聞爺孃喚女聲，但聞燕山胡騎聲啾啾。
+                </p>
+            </div>
+
+            <h2 class="text-xl md:text-2xl font-black text-[#fef08a] leading-relaxed mb-5">詩中重複出現「不聞爺孃喚女聲」用意為何？</h2>
+            <div id="river-question-options" class="grid gap-3"></div>
+            <div id="river-question-feedback" class="hidden mt-5 rounded-xl border-2 p-4 font-bold leading-relaxed"></div>
+        </div>
+    </div>
+
+    <!-- 第三關：黃河夜夢 -->
+    <div id="screen-river-dream" class="screen bg-black/95 flex flex-col justify-center items-center p-3">
+        <div id="river-dream-stage">
+            <img id="river-dream-background" src="黃河夜夢-主場景.png" alt="黑夜的黃河邊，披甲的木蘭抱著劍，倚著戰馬在營火旁熟睡">
+            <div id="river-campfire-glow" aria-hidden="true"></div>
+
+            <button class="dream-bubble mother" type="button" data-dream="mother" aria-label="敲碎母親的夢境泡泡">
+                <img src="黃河夜夢-母親.png" alt="母親端著熱湯，掀開布簾微笑">
+                <p>女兒呀，飯菜都煮好了，快洗手進屋吃飯，今天有妳最愛吃的菜……</p>
+            </button>
+
+            <button class="dream-bubble father" type="button" data-dream="father" aria-label="敲碎父親的夢境泡泡">
+                <img src="黃河夜夢-父親.png" alt="父親坐在木椅上，縫著厚實的防風大襖並招手">
+                <p>女兒呀，冬日夜裡風大，阿爹幫妳把這件厚衣裳縫好了，快來試穿看看合不合身？</p>
+            </button>
+
+            <button id="dream-hammer" type="button" aria-pressed="false">
+                <span class="hammer-icon" aria-hidden="true">🔨</span>
+                <span id="dream-hammer-label">拿起錘子</span>
+            </button>
+            <p id="river-dream-status">先拿起錘子，再親手敲碎兩個夢境泡泡。</p>
+
+            <div id="river-reality" class="hidden" aria-live="assertive">
+                <div id="river-pop">啪！</div>
+                <h2>【但聞黃河流水鳴濺濺】</h2>
+                <button id="river-continue-button" type="button" class="bg-[#92400e] hover:bg-[#b45309] text-white font-black py-3 px-8 rounded-xl text-xl border-2 border-[#f5d08a] shadow-xl">
+                    繼續前行
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 第四關：朝暮疾馳 -->
+    <div id="screen-ride" class="screen bg-black/95 flex flex-col justify-center items-center p-3">
+        <div id="ride-stage" class="dawn">
+            <img id="ride-background" src="黑山頭-第一日古道.png" alt="從木蘭家通往黃河的漫長古道">
+            <div id="ride-sky-tint" aria-hidden="true"></div>
+
+            <div id="ride-hud">
+                <div id="ride-route-labels" aria-label="旅途路線">
+                    <span id="ride-route-destination">黃河邊</span><span>⭠</span><span id="ride-route-origin">木蘭家</span>
+                </div>
+                <div id="ride-progress-track" aria-label="行程進度">
+                    <div id="ride-progress-fill"></div>
+                </div>
+                <div id="ride-timer" aria-live="polite">15.0 秒</div>
+            </div>
+
+            <div id="ride-stage-title">階段一：【驚濤黃河】</div>
+            <div id="ride-mounted" aria-label="木蘭騎著駿馬疾馳">
+                <img id="ride-mulan" src="木蘭-長鞭-去背.png" alt="木蘭">
+                <img id="ride-horse" src="馬匹-去背.png" alt="駿馬">
+                <div id="ride-dust" aria-hidden="true"></div>
+            </div>
+
+            <p id="ride-ready-hint">連續點擊「快跑」，15 秒內抵達目的地！</p>
+            <div id="ride-controls">
+                <button id="ride-fast-button" type="button">快跑！</button>
+                <button id="ride-dodge-button" class="hidden" type="button">閃躲！</button>
+            </div>
+            <div id="ride-arrow" class="hidden" aria-hidden="true">➵</div>
+            <div id="ride-ambush-warning" class="hidden" aria-live="assertive"></div>
+
+            <div id="ride-result-overlay" class="hidden" aria-live="assertive">
+                <h2 id="ride-result-title"></h2>
+                <p id="ride-result-poem"></p>
+                <button id="ride-result-action" type="button" class="hidden bg-[#b91c1c] hover:bg-[#dc2626] text-white font-black py-3 px-9 rounded-xl text-xl border-2 border-[#fef08a] shadow-xl"></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 第四關：行軍時空對比複選題 -->
+    <div id="screen-ride-question" class="screen bg-black/90 flex flex-col justify-center items-center p-4">
+        <div class="bg-[#1e1511] p-5 md:p-7 rounded-3xl max-w-5xl w-full max-h-[94vh] overflow-y-auto shadow-2xl border-4 border-[#d97706] text-[#ece3d2]">
+            <p class="text-[#eab308] font-black text-lg md:text-xl mb-3">第四關：黑山頭・行軍時空對比</p>
+            <div class="bg-[#2a1d17] p-4 md:p-5 rounded-xl mb-5 border-l-4 border-[#eab308] shadow-inner">
+                <span class="text-xs font-bold text-[#eab308] tracking-wider block mb-2">【對應古詩文本】</span>
+                <p class="font-serif text-base md:text-lg leading-relaxed text-[#f5f5f4]">
+                    朝辭爺孃去，暮宿黃河邊，不聞爺孃喚女聲，但聞黃河流水鳴濺濺。<br>
+                    旦辭黃河去，暮至黑山頭，不聞爺孃喚女聲，但聞燕山胡騎聲啾啾。
+                </p>
+            </div>
+            <h2 class="text-lg md:text-2xl font-black text-[#fef08a] leading-relaxed mb-5">
+                呼……在短短兩天之內，狂奔了數百公里，從溫暖的家鄉衝到了荒涼的前線。詩中利用「空間距離極遠（家鄉／黃河／黑山）」對比「行軍時間極短（朝／暮／旦／暮）」，營造出「行軍迅速與軍情緊急」。下列哪些詩句也運用了「距離極遠、時間極短」這樣的文學手法？（複選題）
+            </h2>
+            <div id="ride-question-options" class="grid gap-3"></div>
+            <div id="ride-question-feedback" class="hidden mt-5 rounded-xl border-2 p-4 font-bold leading-relaxed"></div>
+            <button id="ride-question-submit" type="button" class="mt-5 w-full bg-[#b91c1c] hover:bg-[#dc2626] text-white font-black py-3 px-8 rounded-xl text-xl border-2 border-[#fef08a] shadow-xl">確認答案</button>
+        </div>
+    </div>
+
+    <!-- 第五關：戰場街機格鬥問答 -->
+    <div id="screen-battle" class="screen bg-black/95 flex flex-col justify-center items-center p-2">
+        <div id="battle-stage">
+            <img id="battle-background" src="戰場-像素背景.png" alt="塞外寒風刺骨的像素戰場">
+
+            <div id="battle-hud" aria-label="雙方血條">
+                <div>
+                    <div class="battle-name">匈奴首領</div>
+                    <div class="battle-hp-track"><div id="battle-enemy-hp-fill" class="battle-hp-fill"></div></div>
+                </div>
+                <div id="battle-ko-badge">KO</div>
+                <div>
+                    <div class="battle-name player">木蘭</div>
+                    <div class="battle-hp-track"><div id="battle-mulan-hp-fill" class="battle-hp-fill"></div></div>
+                </div>
+            </div>
+
+            <div id="battle-title-card">
+                <div id="battle-title">【 關卡 1：戰場對決 】</div>
+            </div>
+
+            <img id="battle-mulan" class="battle-fighter" src="木蘭-換裝軍裝-去背.png" alt="披甲持劍的木蘭">
+            <img id="battle-enemy" class="battle-fighter" src="匈奴首領-去背.png" alt="匈奴首領">
+            <img id="battle-projectile" src="戰場武器-劍.png" alt="" aria-hidden="true">
+
+            <div id="battle-question-panel">
+                <div id="battle-question"></div>
+                <div id="battle-options"></div>
+                <div id="battle-feedback" aria-live="polite"></div>
+            </div>
+
+            <div id="battle-result-overlay" class="hidden" aria-live="assertive">
+                <h2 id="battle-result-title">K.O.！</h2>
+                <p id="battle-result-detail"></p>
+                <button id="battle-result-button" type="button"></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 第六關：明堂接賞賜 -->
+    <div id="screen-palace-catch" class="screen bg-black/95 flex flex-col justify-center items-center p-3">
+        <div id="palace-catch-stage">
+            <div id="palace-door" aria-label="明堂大門">
+                <div class="palace-door-panel"></div>
+                <div class="palace-door-panel"></div>
+            </div>
+
+            <div id="palace-score-card">得分 <span id="palace-score">0</span> / 50</div>
+            <p id="palace-catch-status">移動木蘭的推車，接住真正需要的返鄉物資！</p>
+            <div id="palace-catch-field" aria-label="接取賞賜遊戲區"></div>
+
+            <div id="palace-catcher" aria-label="木蘭與推車">
+                <img src="人物-去背.png" alt="推著木車的木蘭">
+                <div id="palace-cart" aria-hidden="true"></div>
+            </div>
+
+            <div id="palace-start-overlay">
+                <h2 class="text-3xl md:text-5xl font-black text-[#facc15]">第六關：明堂接賞賜</h2>
+                <p class="mt-2 font-bold">用滑鼠或手指左右移動木蘭的推車，累積 50 分開啟明堂大門！</p>
+                <div id="palace-reward-guide">
+                    <div class="palace-guide-item"><img src="金幣-去背.png" alt="五銖錢">五銖錢<br><span class="text-red-300">－3 分</span></div>
+                    <div class="palace-guide-item"><img src="官帽-去背.png" alt="進賢冠">進賢冠<br><span class="text-red-300">－3 分</span></div>
+                    <div class="palace-guide-item"><b>🐎</b>奔騰駿馬<br><span class="text-green-300">＋10 分</span></div>
+                    <div class="palace-guide-item"><b>✨🐫</b>精壯駱駝<br><span class="text-green-300">＋20 分</span></div>
+                </div>
+                <p class="mb-4 text-sm text-[#fef3c7]">最低分為 0 分，不會出現負分。</p>
+                <button id="palace-start-button" type="button" class="bg-[#b91c1c] hover:bg-[#dc2626] text-white font-black py-3 px-9 rounded-xl text-xl border-2 border-[#fef08a] shadow-xl">開始接賞賜</button>
+            </div>
+
+            <div id="palace-success-overlay" class="hidden" aria-live="assertive">
+                <h2>明堂大門開啟！</h2>
+                <p class="mt-3 text-lg md:text-2xl font-black">木蘭已備妥返鄉所需，接著讀懂她面對封賞的選擇。</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 第七關前置：重返閨房換裝秀 -->
+    <div id="screen-dressup" class="screen bg-black/85 flex flex-col justify-center items-center p-3">
+        <div id="dressup-panel">
+            <div id="dressup-header">
+                <div>
+                    <h2 class="text-xl md:text-3xl font-black">重返閨房：木蘭的換裝秀</h2>
+                    <p id="dressup-step-title" class="mt-1 text-xl md:text-2xl font-black text-[#f7d89a]">Step 1　脫我戰時袍</p>
+                </div>
+            </div>
+
+            <div id="dressup-room">
+                <div class="dressup-side">
+                    <div id="dressup-timer">火伴等候：<span id="dressup-seconds">90</span> 秒</div>
+                    <div class="rounded-xl bg-[#fff3d8dd] p-2 text-center text-xs font-bold">火伴正在門外等候！</div>
+                    <div id="armor-bin" data-drop="armor">♻️<br>把戰時鐵甲拖到這裡</div>
+                </div>
+
+                <div id="dressup-model-stage" data-drop="outfit">
+                    <div id="dressup-doll">
+                        <img id="dressup-mulan" class="dressup-drag-source" data-drag="armor" data-drag-preview="衣物-軍裝-去背.png" src="木蘭-換裝軍裝-去背.png" alt="灰頭土臉、穿著戰時軍裝的木蘭">
+                        <span id="undressed-label" class="hidden">戰袍已卸下</span>
+                        <span id="hair-target" aria-hidden="true"></span>
+                        <span id="forehead-target" data-drop="ornament" aria-hidden="true"></span>
+                        <span id="forehead-flower" class="hidden" aria-hidden="true">
+                            <svg viewBox="0 0 100 100" role="img" aria-label="淡金色五瓣梅花花黃">
+                                <g fill="#f3dda0" stroke="#b58b38" stroke-width="4">
+                                    <ellipse cx="50" cy="24" rx="14" ry="23"></ellipse>
+                                    <ellipse cx="50" cy="24" rx="14" ry="23" transform="rotate(72 50 50)"></ellipse>
+                                    <ellipse cx="50" cy="24" rx="14" ry="23" transform="rotate(144 50 50)"></ellipse>
+                                    <ellipse cx="50" cy="24" rx="14" ry="23" transform="rotate(216 50 50)"></ellipse>
+                                    <ellipse cx="50" cy="24" rx="14" ry="23" transform="rotate(288 50 50)"></ellipse>
+                                    <circle cx="50" cy="50" r="10" fill="#d6b35a"></circle>
+                                </g>
+                            </svg>
+                        </span>
+                    </div>
+                </div>
+
+                <div id="dressup-closet">
+                    <button id="wardrobe-door" type="button" disabled>打開舊衣櫥</button>
+                    <div id="outfit-options" class="hidden">
+                        <button type="button" class="outfit-card dressup-drag-source" data-drag="outfit" data-outfit="official">
+                            <img src="衣物-紫色官服-去背.png" alt="紫色尚書郎官服">尚書郎官服
+                        </button>
+                        <button type="button" class="outfit-card dressup-drag-source" data-drag="outfit" data-outfit="ruqun">
+                            <img src="衣物-粉綠襦裙-去背.png" alt="粉綠北朝襦裙">北朝古風襦裙
+                        </button>
+                        <button type="button" class="outfit-card dressup-drag-source" data-drag="outfit" data-outfit="armor">
+                            <img src="衣物-軍裝-去背.png" alt="戰時軍裝">戰時軍裝
+                        </button>
+                    </div>
+
+                    <div id="vanity-tools">
+                        <strong>彩妝鏡與妝奩</strong>
+                        <div id="vanity-items">
+                            <button id="dressup-comb" class="dressup-drag-source" data-drag="comb" type="button" disabled aria-label="木梳"><img src="梳子-去背.png" alt="雕花木梳"></button>
+                            <button id="dressup-ornament" class="dressup-drag-source hidden" data-drag="ornament" type="button" disabled aria-label="黃色梅花額飾">✿</button>
+                        </div>
+                        <small id="brush-progress" class="block mt-1">梳理雲鬢：0 / 6</small>
+                        <button id="dressup-finish" type="button" class="hidden">盛裝登場</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="dressup-footer">
+                <p id="dressup-status">拖動木蘭身上的鐵甲，放進左側回收桶。</p>
+            </div>
+
+            <div id="dressup-reveal" class="hidden" aria-live="assertive">
+                <div>
+                    <img class="dressup-companions" src="同袍驚訝-去背.png" alt="三位同袍得知木蘭是女郎後露出驚訝表情">
+                    <h3>同行十二年，不知木蘭是女郎！</h3>
+                    <button id="dressup-reveal-next" type="button">我的天啊！木蘭居然是女生？！完全看不出來啊！.....</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 第七關：雌兔辨識挑戰 -->
+    <div id="screen-rabbit" class="screen bg-black/85 flex flex-col justify-center items-center p-4">
+        <div class="bg-[#1e1511] p-5 md:p-7 rounded-3xl max-w-5xl w-full max-h-[94vh] overflow-y-auto shadow-2xl border-4 border-[#d97706] text-[#ece3d2]">
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-3 mb-4">
+                <div>
+                    <h2 class="text-2xl md:text-3xl font-black text-[#facc15]">第七關：雙兔迷蹤</h2>
+                    <p class="text-[#d6c5b3] mt-1">點擊移動中的兔子，尋找眼神迷離的雌兔。</p>
+                </div>
+                <div class="bg-[#2a1d17] border-2 border-[#eab308] px-5 py-2 rounded-xl font-black text-lg whitespace-nowrap">
+                    已找到 <span id="rabbit-count" class="text-[#facc15] text-2xl">0</span> / 3 隻雌兔
+                </div>
+            </div>
+
+            <div class="bg-[#2a1d17] px-4 py-3 rounded-xl mb-4 border-l-4 border-[#eab308] text-center text-base md:text-lg font-serif">
+                雄兔腳撲朔，雌兔眼迷離。
+            </div>
+
+            <div id="rabbit-arena" aria-label="兔子辨識遊戲區"></div>
+            <p id="rabbit-status" class="text-center mt-3 min-h-7 font-bold text-[#fef08a]">兔子都背對著你，點擊一隻讓它轉身！</p>
+        </div>
+    </div>
+
+    <!-- 結算畫面 -->
+    <div id="screen-result" class="screen bg-[#0f0d0be0] flex flex-col justify-start items-center p-3 md:p-4 text-center overflow-y-auto">
+        <div id="result-card" class="bg-[#241a14] border-4 border-[#16a34a] p-4 md:p-5 rounded-3xl max-w-4xl w-full shadow-2xl">
+            <div class="flex items-center justify-center gap-3 mb-3">
+                <span class="text-4xl">⚔️</span>
+                <h1 class="text-3xl md:text-4xl font-black text-[#4ade80] tracking-wider font-serif">凱旋歸來！</h1>
+            </div>
+            
+            <div class="bg-[#1b120d] p-4 rounded-2xl shadow-inner border border-[#3d2e24] mb-4">
+                <p class="text-[#a8a29e] mb-1 font-bold text-sm md:text-base">最終速通時間</p>
+                <p id="final-time" class="text-4xl md:text-5xl font-mono font-black text-[#facc15] mb-3">00:00.000</p>
+                
+                <div class="grid grid-cols-2 gap-3 text-center text-base text-[#d6c5b3] border-t border-[#3d2e24] pt-3">
+                    <p>❌ 答錯次數<br><span id="final-mistakes" class="font-bold text-[#ef4444] text-xl">0</span> 次</p>
+                    <p>⏳ 懲罰秒數<br><span id="final-penalty" class="font-bold text-[#ef4444] text-xl">0</span> 秒</p>
+                </div>
+            </div>
+            
+            <button id="mistake-review-button" type="button" class="w-full mb-3 bg-[#b91c1c] hover:bg-[#dc2626] text-white font-extrabold py-3 px-8 rounded-xl text-lg md:text-xl shadow-lg border-b-4 border-[#7f1d1d] transition-all transform hover:scale-[1.02] active:scale-95">
+                千錘百鍊
+            </button>
+            <div id="mistake-review-panel" class="hidden mb-4 bg-[#1b120d] border-2 border-[#facc15] rounded-2xl p-4 text-left max-h-[46vh] overflow-y-auto">
+                <p id="mistake-review-progress" class="text-[#facc15] font-black mb-2"></p>
+                <div id="mistake-review-text" class="hidden bg-[#2a1d17] p-3 rounded-xl mb-3 border-l-4 border-[#eab308] text-[#f5f5f4] font-serif leading-relaxed"></div>
+                <h2 id="mistake-review-question" class="text-[#fef08a] font-black text-lg leading-relaxed mb-3"></h2>
+                <div id="mistake-review-options" class="grid gap-2"></div>
+                <button id="mistake-review-submit" type="button" class="hidden mt-3 w-full bg-[#b91c1c] hover:bg-[#dc2626] text-white font-black py-2.5 px-6 rounded-xl border-2 border-[#fef08a]">確認答案</button>
+                <p id="mistake-review-feedback" class="mt-3 min-h-7 text-center font-black text-[#fef3c7]"></p>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-3">
+            <button onclick="location.reload()" class="w-full bg-[#16a34a] hover:bg-[#22c55e] text-white font-extrabold py-3 px-8 rounded-xl text-lg md:text-xl shadow-lg border-b-4 border-[#14532d] transition-all transform hover:scale-[1.02] active:scale-95">
+                再次遠征
+            </button>
+            <button id="return-map-button" type="button" class="w-full bg-[#92400e] hover:bg-[#b45309] text-white font-extrabold py-3 px-8 rounded-xl text-lg md:text-xl shadow-lg border-b-4 border-[#78350f]">
+                返回地圖重玩關卡
+            </button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<audio id="background-music" src="背景音樂.mp3" preload="auto" loop></audio>
+
+<script>
+    // --- 音效生成系統 (Web Audio API) ---
+    let audioCtx = null;
+    let weavingSoundTimer = null;
+    let riverSound = null;
+    let battleWarningSound = null;
+    let dreamHammerEquipped = false;
+    let brokenDreamBubbles = 0;
+
+    function startBackgroundMusic() {
+        const music = byId('background-music');
+        if (!music) return;
+        music.volume = 0.28;
+        if (!music.paused) return;
+        music.play().catch(() => {
+            // 瀏覽器若暫時阻擋播放，會在下一次玩家互動時再嘗試。
+        });
+    }
+
+    function playBeep(type) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        try {
+            if (!audioCtx) audioCtx = new AudioContext();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        } catch (error) {
+            return;
+        }
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        if (type === 'success') {
+            // 清脆和弦
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+            osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1); // E5
+            osc.frequency.setValueAtTime(783.99, audioCtx.currentTime + 0.2); // G5
+            gain.gain.setValueAtTime(0.18, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.45);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.45);
+        } else {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(180, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(90, audioCtx.currentTime + 0.25);
+            gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.25);
+        }
+    }
+
+    function playWeavingClack() {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        try {
+            if (!audioCtx) audioCtx = new AudioContext();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        } catch (error) {
+            return;
+        }
+
+        [0, 0.11].forEach((delay, index) => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            const start = audioCtx.currentTime + delay;
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(index ? 145 : 105, start);
+            gain.gain.setValueAtTime(0.055, start);
+            gain.gain.exponentialRampToValueAtTime(0.001, start + 0.075);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(start);
+            osc.stop(start + 0.08);
+        });
+    }
+
+    function startWeavingSound() {
+        stopWeavingSound();
+        playWeavingClack();
+        weavingSoundTimer = window.setInterval(playWeavingClack, 680);
+    }
+
+    function stopWeavingSound() {
+        if (weavingSoundTimer) window.clearInterval(weavingSoundTimer);
+        weavingSoundTimer = null;
+    }
+
+    function startRiverSound() {
+        stopRiverSound();
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        try {
+            if (!audioCtx) audioCtx = new AudioContext();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        } catch (error) {
+            return;
+        }
+
+        const buffer = audioCtx.createBuffer(2, audioCtx.sampleRate * 4, audioCtx.sampleRate);
+        for (let channel = 0; channel < buffer.numberOfChannels; channel += 1) {
+            const data = buffer.getChannelData(channel);
+            let rolling = 0;
+            for (let index = 0; index < data.length; index += 1) {
+                rolling = rolling * 0.97 + (Math.random() * 2 - 1) * 0.22;
+                data[index] = rolling;
+            }
+        }
+
+        const water = audioCtx.createBufferSource();
+        const waterFilter = audioCtx.createBiquadFilter();
+        const rumble = audioCtx.createOscillator();
+        const rumbleGain = audioCtx.createGain();
+        const masterGain = audioCtx.createGain();
+        water.buffer = buffer;
+        water.loop = true;
+        waterFilter.type = 'lowpass';
+        waterFilter.frequency.value = 520;
+        waterFilter.Q.value = 0.7;
+        rumble.type = 'sine';
+        rumble.frequency.value = 43;
+        rumbleGain.gain.value = 0.12;
+        masterGain.gain.value = 0.055;
+        water.connect(waterFilter).connect(masterGain);
+        rumble.connect(rumbleGain).connect(masterGain);
+        masterGain.connect(audioCtx.destination);
+        water.start();
+        rumble.start();
+        riverSound = { water, waterFilter, rumble, masterGain };
+    }
+
+    function intensifyRiverSound() {
+        if (!riverSound || !audioCtx) return;
+        const now = audioCtx.currentTime;
+        riverSound.masterGain.gain.cancelScheduledValues(now);
+        riverSound.masterGain.gain.linearRampToValueAtTime(0.16, now + 0.55);
+        riverSound.waterFilter.frequency.linearRampToValueAtTime(900, now + 0.55);
+    }
+
+    function stopRiverSound() {
+        if (!riverSound) return;
+        try {
+            riverSound.water.stop();
+            riverSound.rumble.stop();
+        } catch (error) {
+            // 音源若已停止，不需再次處理。
+        }
+        riverSound.masterGain.disconnect();
+        riverSound = null;
+    }
+
+    function playBubblePop() {
+        if (!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        const now = audioCtx.currentTime;
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(240, now);
+        osc.frequency.exponentialRampToValueAtTime(70, now + 0.18);
+        gain.gain.setValueAtTime(0.22, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+        osc.connect(gain).connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.2);
+    }
+
+    function playGallopStep() {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        try {
+            if (!audioCtx) audioCtx = new AudioContext();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        } catch (error) {
+            return;
+        }
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        const now = audioCtx.currentTime;
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(82, now);
+        osc.frequency.exponentialRampToValueAtTime(42, now + 0.09);
+        gain.gain.setValueAtTime(0.08, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+        osc.connect(gain).connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.1);
+    }
+
+    function startBattleWarningSound() {
+        stopBattleWarningSound();
+        if (!audioCtx) return;
+        const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 3, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let index = 0; index < data.length; index += 1) data[index] = Math.random() * 2 - 1;
+        const wind = audioCtx.createBufferSource();
+        const filter = audioCtx.createBiquadFilter();
+        const gain = audioCtx.createGain();
+        wind.buffer = buffer;
+        wind.loop = true;
+        filter.type = 'bandpass';
+        filter.frequency.value = 720;
+        filter.Q.value = 0.45;
+        gain.gain.value = 0.075;
+        wind.connect(filter).connect(gain).connect(audioCtx.destination);
+        wind.start();
+        battleWarningSound = { wind, gain };
+        playEnemyHorseWhinny();
+    }
+
+    function playEnemyHorseWhinny() {
+        if (!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        const now = audioCtx.currentTime;
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(330, now);
+        osc.frequency.exponentialRampToValueAtTime(720, now + 0.28);
+        osc.frequency.exponentialRampToValueAtTime(250, now + 0.85);
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(0.065, now + 0.08);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+        osc.connect(gain).connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.92);
+    }
+
+    function stopBattleWarningSound() {
+        if (!battleWarningSound) return;
+        try {
+            battleWarningSound.wind.stop();
+        } catch (error) {
+            // 音源若已停止，不需再次處理。
+        }
+        battleWarningSound.gain.disconnect();
+        battleWarningSound = null;
+    }
+
+    const levels = [
+        {
+            name: '第一關：木蘭家', x: 16, y: 18,
+            text: '昨夜見軍帖，可汗大點兵，軍書十二卷，卷卷有爺名。阿爺無大兒，木蘭無長兄。',
+            question: '木蘭之所以不斷嘆息、憂心忡忡的真正原因是什麼？',
+            options: [], answer: 1
+        },
+        {
+            name: '第二關：市場', x: 52, y: 18,
+            text: '東市買駿馬，西市買鞍韉，南市買轡頭，北市買長鞭。',
+            question: '這段排比句主要表現了什麼？',
+            options: ['木蘭急忙準備出征裝備', '市集貨品價格昂貴', '木蘭想在市集開店'], answer: 0
+        },
+        {
+            name: '第三關：黃河邊', x: 89, y: 39,
+            text: '旦辭爺娘去，暮宿黃河邊。不聞爺娘喚女聲，但聞黃河流水鳴濺濺。',
+            question: '木蘭在黃河邊聽到的是什麼？',
+            options: ['父母的呼喚', '士兵的歌聲', '黃河的流水聲'], answer: 2
+        },
+        {
+            name: '第四關：黑山頭', x: 72, y: 62,
+            text: '', question: '', options: [], answer: -1
+        },
+        {
+            name: '第五關：戰場', x: 17, y: 58,
+            text: '將軍百戰死，壯士十年歸。',
+            question: '這兩句最能概括哪項內容？',
+            options: ['戰事短暫而輕鬆', '戰事長久且傷亡慘重', '將士都在十天後回家'], answer: 1
+        },
+        {
+            name: '第六關：明堂', x: 39, y: 84,
+            text: '策勳十二轉，賞賜百千強。可汗問所欲，木蘭不用尚書郎，願借明駝千里足，送兒還故鄉。',
+            question: '木蘭立下大功後，對天子提出了什麼樣的心願？',
+            options: [
+                '木蘭不稀罕朝廷的達官顯貴與千百萬的賞賜，她唯一的願望是得到代步工具，立刻回到故鄉與父母團聚。',
+                '木蘭擔心自己是女兒身，一旦當了尚書郎住進朝廷，真實身分會立刻被揭穿而招來殺身之禍，因此拒絕封賞。',
+                '木蘭欣然接受天子的賞賜，但因為離家太久，她請求天子能加碼賜予精壯的駱駝，讓她能載滿寶物、衣錦還鄉。'
+            ], answer: 0
+        },
+        {
+            name: '第七關：木蘭家・返鄉', x: 77, y: 72,
+            text: '雄兔腳撲朔，雌兔眼迷離；雙兔傍地走，安能辨我是雄雌？',
+            question: '結尾以雙兔為喻，主要讚美木蘭什麼？',
+            options: [
+                '讚美木蘭卓越的偽裝技巧與易容術。',
+                '讚美木蘭在戰場上敏捷如兔的作戰身手。',
+                '讚美木蘭巾幗不讓鬚眉的非凡能力與勇氣。'
+            ], answer: 2
+        }
+    ];
+
+    const marketShops = [
+        { direction: '東市', correct: '駿馬', choices: ['駿馬', '戰車', '盔甲'] },
+        { direction: '西市', correct: '鞍韉', choices: ['糧草', '鞍韉', '馬靴'] },
+        { direction: '南市', correct: '轡頭', choices: ['轡頭', '頭盔', '弓箭'] },
+        { direction: '北市', correct: '長鞭', choices: ['旗幟', '短刀', '長鞭'] }
+    ];
+
+    const marketQuestionOptions = [
+        '木蘭並非真的跑了四個地方，而是為了表現出整裝快速、忙碌的樣子，這是樂府民歌常見的不避雷同、反覆吟詠的手法。',
+        '木蘭身為女孩子，天生就熱愛逛街購物，所以趁著出征前把東西南北四大商圈全部逛一遍。',
+        '因為北朝時期的市場採取嚴格的「單一商品專賣制」，官府規定每個市場只能賣一種東西。'
+    ];
+
+    const riverQuestionOptions = [
+        '暗示木蘭在家時常常被父母碎念，現在終於離開家，內心感到無比的輕鬆與自由。',
+        '這是樂府民歌常見的『複沓』手法，純粹是為了配合當時歌曲彈唱的節奏與旋律，在文學情感上並沒有特殊的深意。',
+        '藉由親情呼喚與沙場異鄉之音的強烈映襯，深切渲染木蘭的思親之情。'
+    ];
+
+    const battleQuestions = [
+        {
+            text: '萬里赴戎機，關山度若飛。',
+            question: '「萬里赴戎機，關山度若飛」描寫下列何者情形？',
+            options: [
+                '行軍快速，出征之後節節勝利。',
+                '流連沿途美景，不忘尋幽訪勝。',
+                '戰場遙遠，透過飛鴿傳書，傳達思鄉之情。'
+            ],
+            answer: 0
+        },
+        {
+            text: '將軍百戰死，壯士十年歸。',
+            question: '「將軍百戰死，壯士十年歸」揭示戰爭的何種面貌？',
+            options: [
+                '透露出征戰頻繁、死傷慘烈。',
+                '展現將士凱旋時，衣錦還鄉的驕傲。',
+                '歌頌將軍用兵如神，殺敵無數。'
+            ],
+            answer: 0
+        },
+        {
+            text: '朔氣傳金柝，寒光照鐵衣。',
+            question: '「朔氣傳金柝，寒光照鐵衣」烘托戰地夜晚何種邊塞氛圍？',
+            options: [
+                '暗指士兵的戰甲簡陋，禁不起嚴寒。',
+                '藉天氣嚴寒，描寫北方征戰生活的艱辛。',
+                '描繪將士們在軍營升起營火、歡快慶功的溫馨。'
+            ],
+            answer: 1
+        },
+        {
+            text: '巾幗英雄',
+            question: '木蘭被稱為「巾幗英雄」，請問「巾幗」在古典文學中用來借代什麼呢？',
+            options: ['國家', '美女', '女生', '男生'],
+            answer: 2
+        },
+        {
+            text: '但聞燕山胡騎聲啾啾。',
+            question: '詩中「燕山胡騎聲啾啾」的「啾啾」，是在摹擬什麼聲音？',
+            options: ['鳥鳴聲', '風聲', '馬鳴聲', '北方塞外曲'],
+            answer: 2
+        },
+        {
+            text: '樂府民歌的特色',
+            question: '關於樂府詩的體裁特點，下列何者正確？',
+            options: [
+                '不入樂。',
+                '句式工整。',
+                '不可換韻。',
+                '常見反覆疊沓的表現手法。'
+            ],
+            answer: 3
+        },
+        {
+            text: '軍書十二卷；同行十二年。',
+            question: '《木蘭詩》中「軍書十二卷」與「同行十二年」的「十二」代表「多數」的虛數。下列何者也是這種代表「多數」的虛數用法？',
+            options: [
+                '宅邊有「五」柳樹。',
+                '三更燈火「五」更雞。',
+                '「三」思而行。',
+                '「三」言兩語。'
+            ],
+            answer: 2
+        },
+        {
+            text: '漢代掌管音樂的官署',
+            question: '「□□」詩作為一種詩體的名稱，是由漢代專門掌管音樂的官署而來。缺空處應填？',
+            options: ['樂府', '古體', '近體', '現代'],
+            answer: 0
+        },
+        {
+            text: '萬里赴戎機，關山度若飛。朔氣傳金柝，寒光照鐵衣。',
+            question: '『萬里赴戎機，關山度若飛。朔氣傳金柝，寒光照鐵衣。』這段文字疑為後代文人潤飾而成，下列何者無法作為此推論的證據？',
+            options: [
+                '運用諸多修辭。',
+                '對偶句式工整。',
+                '不斷反覆吟詠。',
+                '用筆精簡洗鍊。'
+            ],
+            answer: 2
+        },
+        {
+            text: '朔氣傳金柝，寒光照鐵衣。',
+            question: '木蘭在長年征戰的歲月裡，每時每刻保持高度警覺，最適合用哪個成語形容？',
+            options: ['枕戈待旦', '金戈鐵馬', '厲兵秣馬', '四面楚歌'],
+            answer: 0
+        }
+    ];
+
+    const battleWeapons = [
+        { src: '戰場武器-劍.png', className: 'weapon-sword' },
+        { src: '戰場武器-箭.png', className: 'weapon-arrow' }
+    ];
+
+    const rideQuestionOptions = [
+        '即從巴峽穿巫峽，便下襄陽向洛陽。（杜甫〈聞官軍收河南河北〉）',
+        '朝辭白帝彩雲間，千里江陵一日還。（李白〈早發白帝城〉）',
+        '竹喧歸浣女，蓮動下漁舟。（王維〈山居秋暝〉）',
+        '河漢清且淺，相去復幾許？盈盈一水間，脈脈不得語。（〈迢迢牽牛星〉）',
+        '馨香盈懷袖，路遠莫致之，此物何足貴，但感別經時。（〈庭中有奇樹〉）'
+    ];
+
+    const palaceRewards = [
+        { key: 'coin', image: '金幣-去背.png', label: '五銖錢', points: -3, weight: 30 },
+        { key: 'hat', image: '官帽-去背.png', label: '進賢冠', points: -3, weight: 30 },
+        { key: 'horse', icon: '🐎', label: '奔騰駿馬', points: 10, weight: 25 },
+        { key: 'strong-camel', icon: '✨🐫', label: '精壯的駱駝', points: 20, weight: 15 }
+    ];
+
+    const homeQuestionOptions = [
+        {
+            label: 'Ａ',
+            text: '織布機的聲音太過吵雜，加上織布工作繁重，讓木蘭感到心煩意亂。',
+            feedback: '❌「不聞機杼聲，惟聞女嘆息。」\n木蘭都已經停下織布機了，可見讓她煩惱的不是工作，而是另有其事喔！再想想看吧。'
+        },
+        {
+            label: 'Ｂ',
+            text: '國家大舉徵兵，名單上有父親的名字，但父親年邁、家中又無年長男丁能代為出征。',
+            correct: true
+        },
+        {
+            label: 'Ｃ',
+            text: '昨夜接到了多達十二卷的軍隊文書，繁重的軍事行政工作讓木蘭感到壓力很大。',
+            feedback: '❌「軍書十二卷」是形容徵兵令很多、朝廷催促得緊。\n木蘭並不是要去當文書官，這十二卷軍書帶來的不是工作壓力，而是家庭的危機！'
+        },
+        {
+            label: 'Ｄ',
+            text: '父親和兄長同時被點名要上戰場，木蘭擔心兩位至親的安危而憂心忡忡。',
+            feedback: '❌ 眼睛睜大再看一次文本！\n詩句說「阿爺無大兒，木蘭無長兄」，這代表家裡沒有其他可以當兵的男丁。如果他們都要去，木蘭就不會這麼犯愁了。'
+        }
+    ];
+
+    const homeDecisionOptions = [
+        {
+            label: 'Ａ',
+            text: '決定前往熱鬧的市場做生意，賺取足夠的銀兩來幫父親免除兵役。',
+            feedback: '❌ 注意看後面的文意喔！\n詩句說「從此替爺征」，這代表木蘭要親自去做某件事，而不是賺錢免役。再重新解讀一次「市」字當動詞的用法吧！'
+        },
+        {
+            label: 'Ｂ',
+            text: '決定親自到市場購買馬匹與裝備，挺身而出代替父親奔赴戰場。',
+            correct: true
+        },
+        {
+            label: 'Ｃ',
+            text: '決定幫父親挑選一匹好馬與馬鞍，好讓年邁的父親能順利上戰場。',
+            feedback: '❌ 這樣父親還是要上戰場呀！\n關鍵字在「替爺征」，木蘭心疼父親年邁，所以她的決定是「代替」而不是「協助」喔。'
+        }
+    ];
+
+    const routePaths = [
+        [{ x: 16, y: 18 }, { x: 27, y: 27 }, { x: 37, y: 27 }, { x: 44, y: 20 }, { x: 52, y: 18 }],
+        [{ x: 52, y: 18 }, { x: 63, y: 19 }, { x: 72, y: 24 }, { x: 76, y: 32 }, { x: 84, y: 35 }, { x: 89, y: 39 }],
+        [{ x: 89, y: 39 }, { x: 84, y: 44 }, { x: 82, y: 48 }, { x: 82, y: 57 }, { x: 80, y: 62 }, { x: 76, y: 64 }, { x: 72, y: 62 }],
+        [{ x: 72, y: 62 }, { x: 59, y: 68 }, { x: 54, y: 67 }, { x: 50, y: 64 }, { x: 46, y: 60 }, { x: 42, y: 57 }, { x: 35, y: 57 }, { x: 25, y: 63 }, { x: 17, y: 58 }],
+        [{ x: 17, y: 58 }, { x: 20, y: 68 }, { x: 20, y: 77 }, { x: 29, y: 82 }, { x: 39, y: 88 }],
+        [{ x: 39, y: 88 }, { x: 55, y: 86 }, { x: 66, y: 84 }, { x: 73, y: 79 }, { x: 77, y: 72 }]
+    ];
+
+    const standingPlayerImage = '人物-去背.png';
+    const walkingPlayerImages = ['木蘭-左步-去背.png', '木蘭-右步-同向-去背.png'];
+    const movementVectors = {
+        arrowup: { x: 0, y: -1 }, w: { x: 0, y: -1 },
+        arrowdown: { x: 0, y: 1 }, s: { x: 0, y: 1 },
+        arrowleft: { x: -1, y: 0 }, a: { x: -1, y: 0 },
+        arrowright: { x: 1, y: 0 }, d: { x: 1, y: 0 }
+    };
+
+    let currentLevel = 0;
+    let startTime = 0;
+    let penaltySeconds = 0;
+    let mistakes = 0;
+    let timerId;
+    let marketShopIndex = -1;
+    let marketInputLocked = false;
+    let marketPurchasedShops = new Set();
+    let activeChallengeLevel = 0;
+    let homeTaskIndex = 0;
+    let battleRoundIndex = 0;
+    let battleQuestionOrder = [];
+    let battleMulanHP = 100;
+    let battleEnemyHP = 100;
+    let battleInputLocked = false;
+    let battleResultIsWin = false;
+    let wrongQuestionLog = [];
+    let wrongQuestionIds = new Set();
+    let mistakeReviewIndex = 0;
+    let mistakeReviewSelections = new Set();
+    let rideStageIndex = 0;
+    let rideProgress = 0;
+    let rideStartedAt = 0;
+    let rideRunning = false;
+    let rideAnimationFrame = null;
+    let rideTransitionTimer = null;
+    let rideArrowSpawnTimer = null;
+    let rideArrowResolveTimer = null;
+    let rideAmbushFeedbackTimer = null;
+    let rideArrowActive = false;
+    let rideQuestionSelections = new Set();
+    let palaceScore = 0;
+    let palaceGameRunning = false;
+    let palaceAnimationFrame = null;
+    let palaceLastFrame = 0;
+    let palaceSpawnElapsed = 0;
+    let palaceCatcherX = 50;
+    let palaceFallingItems = [];
+    let palaceTransitionTimer = null;
+    let dressupStep = 1;
+    let dressupSeconds = 90;
+    let dressupTimerId = null;
+    let dressupBrushCount = 0;
+    let dressupDrag = null;
+    let gameStarted = false;
+    const correctAnswerDelay = 3000;
+    const marketPurchaseDelay = 2000;
+    let playerPosition = { x: levels[0].x, y: levels[0].y };
+    let playerFacing = 1;
+    let playerIsWalking = false;
+    let walkingFrame = -1;
+    let walkingElapsed = 0;
+    let previousFrameTime = 0;
+    let lastTriggeredLevel = 0;
+    let autoTravel = null;
+    const pressedMovementKeys = new Set();
+
+    const byId = id => document.getElementById(id);
+
+    function fallbackPlayer(image) {
+        image.style.display = 'none';
+    }
+
+    function formatTime(milliseconds) {
+        const total = Math.max(0, Math.floor(milliseconds));
+        const minutes = Math.floor(total / 60000);
+        const seconds = Math.floor((total % 60000) / 1000);
+        const ms = total % 1000;
+        return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
+    }
+
+    function elapsedTime() {
+        return performance.now() - startTime + penaltySeconds * 1000;
+    }
+
+    function updateTimer() {
+        byId('timer-display').textContent = formatTime(elapsedTime());
+        byId('mistakes-display').textContent = mistakes;
+    }
+
+    function recordWrongQuestion(entry) {
+        if (!entry || wrongQuestionIds.has(entry.id)) return;
+        wrongQuestionIds.add(entry.id);
+        wrongQuestionLog.push(entry);
+    }
+
+    function makeHomeReviewEntry() {
+        const questionOptions = homeTaskIndex === 0 ? homeQuestionOptions : homeDecisionOptions;
+        return {
+            id: `home-${homeTaskIndex}`,
+            title: homeTaskIndex === 0 ? '第一關：任務一　木蘭的嘆息' : '第一關：任務二　木蘭的抉擇',
+            text: byId('home-question-text').textContent,
+            question: byId('home-question-prompt').textContent,
+            options: questionOptions.map(option => option.text),
+            answer: questionOptions.findIndex(option => option.correct)
+        };
+    }
+
+    function makeLevelReviewEntry(index) {
+        const level = levels[index];
+        return {
+            id: `level-${index}`,
+            title: level.name,
+            text: level.text,
+            question: level.question,
+            options: level.options,
+            answer: level.answer
+        };
+    }
+
+    function makeChoiceReviewEntry(id, title, text, question, options, answer) {
+        return { id, title, text, question, options, answer };
+    }
+
+    function makeMultiReviewEntry(id, title, text, question, options, answers) {
+        return { id, title, text, question, options, answers, multi: true };
+    }
+
+    function renderMap() {
+        const container = byId('nodes-container');
+        container.innerHTML = '';
+        levels.forEach((level, index) => {
+            const node = document.createElement('button');
+            node.type = 'button';
+            node.className = `map-node ${index < currentLevel ? 'cleared' : index === currentLevel ? 'active' : 'locked'}`;
+            node.style.left = `${level.x}%`;
+            node.style.top = `${level.y}%`;
+            node.setAttribute('aria-label', level.name);
+            if (index <= currentLevel) node.addEventListener('click', () => openLevelIfNearby(index));
+            container.appendChild(node);
+        });
+    }
+
+    function placePlayer(index) {
+        playerPosition = { x: levels[index].x, y: levels[index].y };
+        renderPlayerPosition();
+    }
+
+    function renderPlayerPosition() {
+        const player = byId('player-sprite');
+        player.style.left = `${playerPosition.x}%`;
+        player.style.top = `${playerPosition.y}%`;
+    }
+
+    function distanceToSegment(px, py, ax, ay, bx, by) {
+        const segmentX = bx - ax;
+        const segmentY = by - ay;
+        const segmentLengthSquared = segmentX * segmentX + segmentY * segmentY;
+        const projection = segmentLengthSquared
+            ? Math.max(0, Math.min(1, ((px - ax) * segmentX + (py - ay) * segmentY) / segmentLengthSquared))
+            : 0;
+        const closestX = ax + projection * segmentX;
+        const closestY = ay + projection * segmentY;
+        return Math.hypot(px - closestX, py - closestY);
+    }
+
+    function isWalkablePosition(x, y) {
+        if (x < 4 || x > 96 || y < 7 || y > 95) return false;
+        const map = byId('world-map').getBoundingClientRect();
+        const px = x / 100 * map.width;
+        const py = y / 100 * map.height;
+        const corridorWidth = Math.max(48, map.width * 0.055);
+        return routePaths.some(section => section.some((point, index) => {
+            if (!index) return false;
+            const previous = section[index - 1];
+            return distanceToSegment(
+                px, py,
+                previous.x / 100 * map.width, previous.y / 100 * map.height,
+                point.x / 100 * map.width, point.y / 100 * map.height
+            ) <= corridorWidth;
+        }));
+    }
+
+    function distanceFromPlayerToLevel(index) {
+        const map = byId('world-map').getBoundingClientRect();
+        return Math.hypot(
+            (playerPosition.x - levels[index].x) / 100 * map.width,
+            (playerPosition.y - levels[index].y) / 100 * map.height
+        );
+    }
+
+    function setPlayerWalking(isWalking, deltaSeconds = 0) {
+        const player = byId('player-sprite');
+        if (!isWalking) {
+            if (playerIsWalking) {
+                player.src = standingPlayerImage;
+                player.style.transform = 'translate(-50%, -90%)';
+            }
+            playerIsWalking = false;
+            walkingFrame = -1;
+            walkingElapsed = 0;
+            return;
+        }
+
+        playerIsWalking = true;
+        walkingElapsed += deltaSeconds;
+        const nextFrame = Math.floor(walkingElapsed / 0.18) % walkingPlayerImages.length;
+        if (nextFrame !== walkingFrame) {
+            walkingFrame = nextFrame;
+            player.src = walkingPlayerImages[walkingFrame];
+        }
+        player.style.transform = `translate(-50%, -90%) scaleX(${playerFacing})`;
+    }
+
+    function currentMovementDirection() {
+        let x = 0;
+        let y = 0;
+        pressedMovementKeys.forEach(key => {
+            x += movementVectors[key].x;
+            y += movementVectors[key].y;
+        });
+        if (!x && !y) return null;
+        const length = Math.hypot(x, y);
+        return { x: x / length, y: y / length };
+    }
+
+    function openLevel(index) {
+        activeChallengeLevel = index;
+        lastTriggeredLevel = index;
+        autoTravel = null;
+        pressedMovementKeys.clear();
+        setPlayerWalking(false);
+        openQuestion(index);
+    }
+
+    function openLevelIfNearby(index) {
+        if (index > currentLevel) return;
+        if (distanceFromPlayerToLevel(index) <= 48) {
+            openLevel(index);
+            return;
+        }
+        startAutoTravel(index);
+    }
+
+    function nearestLevelIndex() {
+        let nearestIndex = 0;
+        let nearestDistance = Infinity;
+        levels.forEach((level, index) => {
+            const distance = distanceFromPlayerToLevel(index);
+            if (distance < nearestDistance) {
+                nearestIndex = index;
+                nearestDistance = distance;
+            }
+        });
+        return nearestIndex;
+    }
+
+    function routePointsBetween(from, to) {
+        if (from === to) return [];
+        const points = [];
+        const direction = to > from ? 1 : -1;
+        for (let index = from; index !== to; index += direction) {
+            const pathIndex = direction > 0 ? index : index - 1;
+            const section = direction > 0 ? routePaths[pathIndex] : [...routePaths[pathIndex]].reverse();
+            points.push(...(points.length ? section.slice(1) : section));
+        }
+        return points;
+    }
+
+    function startAutoTravel(targetIndex) {
+        const startIndex = nearestLevelIndex();
+        const points = routePointsBetween(startIndex, targetIndex);
+        if (!points.length) {
+            openLevel(targetIndex);
+            return;
+        }
+        autoTravel = { targetIndex, points, pointIndex: 0 };
+    }
+
+    function updateAutoTravel(deltaSeconds) {
+        if (!autoTravel) return false;
+        const target = autoTravel.points[autoTravel.pointIndex];
+        const map = byId('world-map').getBoundingClientRect();
+        const deltaX = (target.x - playerPosition.x) / 100 * map.width;
+        const deltaY = (target.y - playerPosition.y) / 100 * map.height;
+        const distance = Math.hypot(deltaX, deltaY);
+        const stepDistance = 105 * deltaSeconds;
+
+        if (distance <= Math.max(stepDistance, 2)) {
+            playerPosition = { x: target.x, y: target.y };
+            renderPlayerPosition();
+            autoTravel.pointIndex += 1;
+            if (autoTravel.pointIndex >= autoTravel.points.length) {
+                const targetIndex = autoTravel.targetIndex;
+                openLevel(targetIndex);
+                return false;
+            }
+            return true;
+        }
+
+        const direction = { x: deltaX / distance, y: deltaY / distance };
+        movePlayer(direction, deltaSeconds, false);
+        return true;
+    }
+
+    function checkLevelArrival() {
+        const nearbyLevel = levels.findIndex((level, index) =>
+            index <= currentLevel && distanceFromPlayerToLevel(index) <= 30
+        );
+        if (nearbyLevel === -1) {
+            lastTriggeredLevel = -1;
+        } else if (nearbyLevel !== lastTriggeredLevel) {
+            openLevel(nearbyLevel);
+        }
+    }
+
+    function movePlayer(direction, deltaSeconds, checkArrival = true) {
+        const map = byId('world-map').getBoundingClientRect();
+        const speed = 120;
+        const deltaX = direction.x * speed * deltaSeconds / map.width * 100;
+        const deltaY = direction.y * speed * deltaSeconds / map.height * 100;
+        const fullX = playerPosition.x + deltaX;
+        const fullY = playerPosition.y + deltaY;
+        let moved = false;
+
+        if (isWalkablePosition(fullX, fullY)) {
+            playerPosition = { x: fullX, y: fullY };
+            moved = true;
+        } else {
+            if (isWalkablePosition(fullX, playerPosition.y)) {
+                playerPosition.x = fullX;
+                moved = true;
+            }
+            if (isWalkablePosition(playerPosition.x, fullY)) {
+                playerPosition.y = fullY;
+                moved = true;
+            }
+        }
+
+        if (moved) {
+            if (direction.x) playerFacing = -Math.sign(direction.x);
+            renderPlayerPosition();
+            if (checkArrival) checkLevelArrival();
+        }
+        return moved;
+    }
+
+    function movementLoop(timestamp) {
+        const deltaSeconds = previousFrameTime
+            ? Math.min((timestamp - previousFrameTime) / 1000, 0.1)
+            : 0;
+        previousFrameTime = timestamp;
+        const mapIsInteractive = gameStarted && !document.querySelector('.screen.active');
+        const direction = mapIsInteractive ? currentMovementDirection() : null;
+        if (direction && autoTravel) {
+            autoTravel = null;
+        }
+        const moved = direction
+            ? movePlayer(direction, deltaSeconds)
+            : mapIsInteractive && autoTravel
+                ? updateAutoTravel(deltaSeconds)
+                : false;
+        setPlayerWalking(Boolean(moved), deltaSeconds);
+        window.requestAnimationFrame(movementLoop);
+    }
+
+    function startGame() {
+        startBackgroundMusic();
+        stopWeavingSound();
+        stopRiverSound();
+        stopBattleWarningSound();
+        stopPalaceCatchGame();
+        currentLevel = 0;
+        activeChallengeLevel = 0;
+        gameStarted = true;
+        autoTravel = null;
+        pressedMovementKeys.clear();
+        lastTriggeredLevel = 0;
+        penaltySeconds = 0;
+        mistakes = 0;
+        wrongQuestionLog = [];
+        wrongQuestionIds = new Set();
+        mistakeReviewIndex = 0;
+        mistakeReviewSelections = new Set();
+        startTime = performance.now();
+        byId('screen-title').classList.remove('active');
+        byId('hud').classList.remove('hidden');
+        renderMap();
+        placePlayer(0);
+        updateTimer();
+        timerId = window.setInterval(updateTimer, 31);
+    }
+
+    function openQuestion(index) {
+        if (index === 0) {
+            openHomeScene();
+            return;
+        }
+        if (index === 1) {
+            openMarketChallenge();
+            return;
+        }
+        if (index === 2) {
+            openRiverDreamChallenge();
+            return;
+        }
+        if (index === 3) {
+            openRideChallenge();
+            return;
+        }
+        if (index === 4) {
+            openBattleChallenge();
+            return;
+        }
+        if (index === 5) {
+            openPalaceCatchChallenge();
+            return;
+        }
+        if (index === 6) {
+            openDressupChallenge();
+            return;
+        }
+        openStandardQuestion(index);
+    }
+
+    function openHomeScene() {
+        homeTaskIndex = 0;
+        byId('home-scene-image').classList.remove('outfit-scene');
+        byId('home-scene-image').src = '木蘭家-憂愁織布.png';
+        byId('home-scene-image').alt = '木蘭在夜裡停下織布，神情憂愁地嘆息';
+        byId('home-expression-button').classList.remove('hidden');
+        byId('home-poem-card').classList.remove('hidden');
+        byId('home-success-panel').classList.add('hidden');
+        byId('screen-home').classList.add('active');
+        startWeavingSound();
+    }
+
+    function openHomeQuestion() {
+        stopWeavingSound();
+        byId('screen-home').classList.remove('active');
+        const options = byId('home-question-options');
+        const feedback = byId('home-question-feedback');
+        const questionOptions = homeTaskIndex === 0 ? homeQuestionOptions : homeDecisionOptions;
+        options.innerHTML = '';
+        feedback.className = 'hidden mt-5 rounded-xl border-2 p-4 font-bold leading-relaxed whitespace-pre-line';
+        feedback.textContent = '';
+
+        if (homeTaskIndex === 0) {
+            byId('home-task-label').textContent = '任務一　木蘭的嘆息';
+            byId('home-question-prompt').textContent = '根據詩句，推論木蘭不斷嘆息、憂心忡忡的原因為何？';
+            byId('home-question-text').textContent = '昨夜見軍帖，可汗大點兵，軍書十二卷，卷卷有爺名。\n阿爺無大兒，木蘭無長兄。';
+        } else {
+            byId('home-task-label').textContent = '任務二　木蘭的抉擇';
+            byId('home-question-prompt').textContent = '看著年邁的父親，木蘭眼神一動，似乎下定了某個決心。根據詩句，推論木蘭最終做出了什麼決定？';
+            byId('home-question-text').textContent = '願為市鞍馬，從此替爺征。';
+        }
+
+        questionOptions.forEach((option, index) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'w-full bg-[#3a2920] hover:bg-[#5a3b28] border-2 border-[#76543b] px-4 py-3 rounded-xl text-left text-base md:text-lg font-bold transition-colors';
+            button.textContent = `（${option.label}）${option.text}`;
+            button.addEventListener('click', () => answerHomeQuestion(index, button));
+            options.appendChild(button);
+        });
+        byId('screen-home-question').classList.add('active');
+    }
+
+    function answerHomeQuestion(index, button) {
+        const questionOptions = homeTaskIndex === 0 ? homeQuestionOptions : homeDecisionOptions;
+        const option = questionOptions[index];
+        if (!option.correct) {
+            recordWrongQuestion(makeHomeReviewEntry());
+            mistakes += 1;
+            playBeep('error');
+            button.classList.add('shake', 'border-red-500', 'bg-red-900');
+            window.setTimeout(() => button.classList.remove('shake', 'border-red-500', 'bg-red-900'), 500);
+            const feedback = byId('home-question-feedback');
+            feedback.className = 'mt-5 rounded-xl border-2 border-red-400 bg-red-950/70 text-red-100 p-4 font-bold leading-relaxed whitespace-pre-line';
+            feedback.textContent = option.feedback;
+            return;
+        }
+
+        playBeep('success');
+        byId('home-question-options').querySelectorAll('button').forEach(optionButton => optionButton.disabled = true);
+        const feedback = byId('home-question-feedback');
+        feedback.className = 'mt-5 rounded-xl border-2 border-green-400 bg-green-950/70 text-green-100 p-4 font-bold leading-relaxed whitespace-pre-line';
+        feedback.textContent = homeTaskIndex === 0
+            ? '🎉 答對了！父親年邁，家中又沒有年長男丁能代為出征，這正是木蘭嘆息的原因。'
+            : '🎉 答對了！木蘭決定購置馬匹與裝備，親自代替父親出征。';
+        window.setTimeout(() => {
+            byId('screen-home-question').classList.remove('active');
+            showHomeSuccess();
+        }, correctAnswerDelay);
+    }
+
+    function showHomeSuccess() {
+        byId('home-scene-image').classList.remove('outfit-scene');
+        byId('home-scene-image').src = '木蘭家-堅定軍帖.png';
+        byId('home-scene-image').alt = '木蘭神情堅定，織布機旁放著神祕的軍帖';
+        byId('home-expression-button').classList.add('hidden');
+        byId('home-poem-card').classList.add('hidden');
+        if (homeTaskIndex === 0) {
+            byId('home-success-title').textContent = '🎉 答對了！你成功讀懂了木蘭的心事。';
+            byId('home-success-description').textContent = '父親的名字赫然在徵兵令上，但家裡沒有大兒子，木蘭也沒有哥哥，這份沉重的徵兵令，就是木蘭嘆息的原因。';
+            byId('home-item-icon').textContent = '📜';
+            byId('home-item-name').textContent = '神祕的軍帖';
+            byId('home-continue-button').textContent = '收好軍帖，進入任務二';
+        } else {
+            byId('home-scene-image').classList.add('outfit-scene');
+            byId('home-scene-image').src = '木蘭家-披甲出征.png';
+            byId('home-scene-image').alt = '木蘭身穿軍裝、佩著劍，站在家門前準備出征';
+            byId('home-success-title').textContent = '🎉 恭喜答對！你見證了歷史上最勇敢的抉擇！';
+            byId('home-success-description').textContent = '木蘭決定打破時代的限制，自願為父親分擔災厄，踏上代父從軍的旅程！';
+            byId('home-item-icon').textContent = '⚔️';
+            byId('home-item-name').textContent = '一套軍裝、一把劍';
+            byId('home-continue-button').textContent = '帶著軍裝與劍，前往市場';
+        }
+        byId('home-success-panel').classList.remove('hidden');
+        byId('screen-home').classList.add('active');
+    }
+
+    function openStandardQuestion(index) {
+        const level = levels[index];
+        byId('q-modal-title').textContent = level.name;
+        byId('q-modal-text').textContent = level.text;
+        byId('q-modal-q').textContent = level.question;
+        const options = byId('q-modal-options');
+        const feedback = byId('q-modal-feedback');
+        options.innerHTML = '';
+        feedback.className = 'hidden mt-5 rounded-xl border-2 p-4 font-bold leading-relaxed';
+        feedback.textContent = '';
+        level.options.forEach((option, optionIndex) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'w-full bg-[#3a2920] hover:bg-[#5a3b28] border-2 border-[#76543b] px-5 py-3 rounded-xl text-left text-lg font-bold transition-colors';
+            button.textContent = `（${['Ａ', 'Ｂ', 'Ｃ'][optionIndex]}）${option}`;
+            button.addEventListener('click', () => answerQuestion(optionIndex, button));
+            options.appendChild(button);
+        });
+        byId('screen-question').classList.add('active');
+    }
+
+    function openRideChallenge() {
+        stopRiverSound();
+        stopBattleWarningSound();
+        window.cancelAnimationFrame(rideAnimationFrame);
+        window.clearTimeout(rideTransitionTimer);
+        byId('screen-ride').classList.add('active');
+        setupRideStage(0);
+    }
+
+    function setupRideStage(index) {
+        resetRideAmbush();
+        rideStageIndex = index;
+        rideProgress = 0;
+        rideStartedAt = 0;
+        rideRunning = false;
+        window.cancelAnimationFrame(rideAnimationFrame);
+        const stage = byId('ride-stage');
+        const mounted = byId('ride-mounted');
+        stage.className = index === 1 ? 'dawn ambush' : 'dawn';
+        stage.style.setProperty('--ride-progress', '0');
+        mounted.className = '';
+        mounted.style.left = '64%';
+        byId('ride-background').src = index === 0 ? '黑山頭-第一日古道.png' : '黑山頭-第二日山路.png';
+        byId('ride-background').alt = index === 0 ? '從木蘭家通往黃河的漫長古道' : '從黃河通往黑山頭的崎嶇山路';
+        byId('ride-stage-title').textContent = index === 0 ? '階段一：【驚濤黃河】' : '階段二：【肅殺燕山】';
+        byId('ride-route-destination').textContent = index === 0 ? '黃河邊' : '黑山頭';
+        byId('ride-route-origin').textContent = index === 0 ? '木蘭家' : '黃河邊';
+        byId('ride-progress-fill').style.width = '0%';
+        byId('ride-timer').textContent = index === 0 ? '15.0 秒' : '20.0 秒';
+        byId('ride-ready-hint').textContent = index === 0
+            ? '連續點擊「快跑」，15 秒內從木蘭家抵達黃河邊！'
+            : '敵軍沿途埋伏！連續點擊「快跑」，看見飛箭時立刻按「閃躲」！';
+        byId('ride-ready-hint').classList.remove('hidden');
+        const fastButton = byId('ride-fast-button');
+        fastButton.classList.remove('hidden');
+        fastButton.disabled = false;
+        byId('ride-dodge-button').classList.toggle('hidden', index === 0);
+        byId('ride-dodge-button').disabled = false;
+        byId('ride-result-overlay').classList.add('hidden');
+        byId('ride-result-action').classList.add('hidden');
+    }
+
+    function resetRideAmbush() {
+        window.clearTimeout(rideArrowSpawnTimer);
+        window.clearTimeout(rideArrowResolveTimer);
+        window.clearTimeout(rideAmbushFeedbackTimer);
+        rideArrowSpawnTimer = null;
+        rideArrowResolveTimer = null;
+        rideAmbushFeedbackTimer = null;
+        rideArrowActive = false;
+        byId('ride-arrow').classList.add('hidden');
+        byId('ride-arrow').classList.remove('flying');
+        byId('ride-ambush-warning').className = 'hidden';
+        byId('ride-dodge-button').classList.add('hidden');
+        byId('ride-stage').classList.remove('ride-hit');
+        byId('ride-mounted').classList.remove('dodging');
+    }
+
+    function scheduleRideArrow() {
+        window.clearTimeout(rideArrowSpawnTimer);
+        if (!rideRunning || rideStageIndex !== 1) return;
+        rideArrowSpawnTimer = window.setTimeout(launchRideArrow, 1400 + Math.random() * 1600);
+    }
+
+    function launchRideArrow() {
+        if (!rideRunning || rideStageIndex !== 1) return;
+        const arrow = byId('ride-arrow');
+        const warning = byId('ride-ambush-warning');
+        window.clearTimeout(rideAmbushFeedbackTimer);
+        rideArrowActive = true;
+        arrow.classList.remove('hidden', 'flying');
+        void arrow.offsetWidth;
+        arrow.classList.add('flying');
+        warning.textContent = '敵箭來襲！快按「閃躲」！';
+        warning.className = '';
+        rideArrowResolveTimer = window.setTimeout(resolveRideArrowHit, 950);
+    }
+
+    function resolveRideArrowHit() {
+        if (!rideRunning || !rideArrowActive) return;
+        rideArrowActive = false;
+        rideProgress = Math.max(0, rideProgress - 10);
+        updateRideVisuals();
+        byId('ride-arrow').classList.add('hidden');
+        byId('ride-arrow').classList.remove('flying');
+        byId('ride-ambush-warning').textContent = '中箭了！行程進度後退！';
+        byId('ride-ambush-warning').className = '';
+        byId('ride-stage').classList.add('ride-hit');
+        playBeep('error');
+        rideAmbushFeedbackTimer = window.setTimeout(() => {
+            byId('ride-ambush-warning').classList.add('hidden');
+            byId('ride-stage').classList.remove('ride-hit');
+            scheduleRideArrow();
+        }, 700);
+    }
+
+    function dodgeRideArrow() {
+        if (!rideRunning || rideStageIndex !== 1) return;
+        const warning = byId('ride-ambush-warning');
+        if (!rideArrowActive) {
+            warning.textContent = '敵箭尚未逼近，留意前方！';
+            warning.className = '';
+            window.clearTimeout(rideAmbushFeedbackTimer);
+            rideAmbushFeedbackTimer = window.setTimeout(() => warning.classList.add('hidden'), 650);
+            return;
+        }
+
+        rideArrowActive = false;
+        window.clearTimeout(rideArrowResolveTimer);
+        byId('ride-arrow').classList.add('hidden');
+        byId('ride-arrow').classList.remove('flying');
+        warning.textContent = '閃過敵箭！';
+        warning.className = 'success';
+        byId('ride-mounted').classList.add('dodging');
+        playBeep('success');
+        rideAmbushFeedbackTimer = window.setTimeout(() => {
+            warning.classList.add('hidden');
+            byId('ride-mounted').classList.remove('dodging');
+            updateRideVisuals();
+            scheduleRideArrow();
+        }, 600);
+    }
+
+    function accelerateRide() {
+        if (!byId('screen-ride').classList.contains('active') || !byId('ride-result-overlay').classList.contains('hidden')) return;
+        if (!rideRunning) {
+            rideRunning = true;
+            rideStartedAt = performance.now();
+            byId('ride-ready-hint').classList.add('hidden');
+            rideAnimationFrame = window.requestAnimationFrame(updateRideTimer);
+            if (rideStageIndex === 1) scheduleRideArrow();
+        }
+
+        rideProgress = Math.min(100, rideProgress + (rideStageIndex === 0 ? 4.2 : 3.4));
+        playGallopStep();
+        updateRideVisuals();
+        if (rideProgress >= 100) completeRideStage();
+    }
+
+    function updateRideVisuals() {
+        const stage = byId('ride-stage');
+        const mounted = byId('ride-mounted');
+        stage.style.setProperty('--ride-progress', String(rideProgress));
+        byId('ride-progress-fill').style.width = `${rideProgress}%`;
+        mounted.style.left = `${64 - rideProgress * 0.58}%`;
+        mounted.classList.toggle('trot', rideStageIndex === 0 && rideProgress > 0 && rideProgress < 48);
+        mounted.classList.toggle('gallop', rideProgress > 0 && (rideStageIndex === 1 || rideProgress >= 48));
+        stage.classList.remove('dawn', 'noon', 'sunset', 'night');
+        stage.classList.add(rideProgress < 25 ? 'dawn' : rideProgress < 52 ? 'noon' : rideProgress < 78 ? 'sunset' : 'night');
+    }
+
+    function updateRideTimer(now) {
+        if (!rideRunning) return;
+        const timeLimit = rideStageIndex === 0 ? 15 : 20;
+        const remaining = Math.max(0, timeLimit - (now - rideStartedAt) / 1000);
+        byId('ride-timer').textContent = `${remaining.toFixed(1)} 秒`;
+        if (remaining <= 0) {
+            failRideStage();
+            return;
+        }
+        rideAnimationFrame = window.requestAnimationFrame(updateRideTimer);
+    }
+
+    function completeRideStage() {
+        if (!rideRunning) return;
+        rideRunning = false;
+        window.cancelAnimationFrame(rideAnimationFrame);
+        resetRideAmbush();
+        byId('ride-timer').textContent = '抵達！';
+        byId('ride-fast-button').classList.add('hidden');
+        byId('ride-mounted').className = 'braking';
+        byId('ride-result-overlay').classList.remove('hidden');
+
+        if (rideStageIndex === 0) {
+            startRiverSound();
+            byId('ride-result-title').textContent = '抵達黃河邊！';
+            byId('ride-result-poem').textContent = '【第一天：朝辭爺孃去，暮宿黃河邊】';
+            rideTransitionTimer = window.setTimeout(() => {
+                stopRiverSound();
+                setupRideStage(1);
+            }, 2000);
+            return;
+        }
+
+        stopRiverSound();
+        startBattleWarningSound();
+        byId('ride-result-title').textContent = '戰地警報';
+        byId('ride-result-poem').textContent = '【第二天：旦辭黃河去，暮至黑山頭】';
+        const action = byId('ride-result-action');
+        action.dataset.action = 'complete';
+        action.textContent = '衝啊❗';
+        action.classList.remove('hidden');
+    }
+
+    function failRideStage() {
+        rideRunning = false;
+        window.cancelAnimationFrame(rideAnimationFrame);
+        resetRideAmbush();
+        byId('ride-fast-button').classList.add('hidden');
+        byId('ride-result-title').textContent = '暮色已至，尚未抵達！';
+        byId('ride-result-poem').textContent = '再快一些，重新挑戰這段路程。';
+        const action = byId('ride-result-action');
+        action.dataset.action = 'retry';
+        action.textContent = '重新挑戰本階段';
+        action.classList.remove('hidden');
+        byId('ride-result-overlay').classList.remove('hidden');
+    }
+
+    function openRideQuestion() {
+        rideQuestionSelections = new Set();
+        const options = byId('ride-question-options');
+        const feedback = byId('ride-question-feedback');
+        options.innerHTML = '';
+        feedback.className = 'hidden mt-5 rounded-xl border-2 p-4 font-bold leading-relaxed';
+        feedback.textContent = '';
+        byId('ride-question-submit').disabled = false;
+
+        rideQuestionOptions.forEach((text, index) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'ride-question-option w-full bg-[#3a2920] hover:bg-[#5a3b28] border-2 border-[#76543b] px-4 py-3 rounded-xl text-left text-base md:text-lg font-bold transition-colors';
+            button.textContent = `（${['Ａ', 'Ｂ', 'Ｃ', 'Ｄ', 'Ｅ'][index]}）${text}`;
+            button.setAttribute('aria-pressed', 'false');
+            button.addEventListener('click', () => {
+                if (rideQuestionSelections.has(index)) {
+                    rideQuestionSelections.delete(index);
+                } else {
+                    rideQuestionSelections.add(index);
+                }
+                const selected = rideQuestionSelections.has(index);
+                button.classList.toggle('selected', selected);
+                button.setAttribute('aria-pressed', String(selected));
+            });
+            options.appendChild(button);
+        });
+        byId('screen-ride-question').classList.add('active');
+    }
+
+    function submitRideQuestion() {
+        const feedback = byId('ride-question-feedback');
+        if (!rideQuestionSelections.size) {
+            feedback.className = 'mt-5 rounded-xl border-2 border-amber-400 bg-amber-950/70 text-amber-100 p-4 font-bold leading-relaxed';
+            feedback.textContent = '這是複選題，請先選出符合「距離極遠、時間極短」的詩句。';
+            return;
+        }
+
+        const correct = rideQuestionSelections.size === 2
+            && rideQuestionSelections.has(0)
+            && rideQuestionSelections.has(1);
+        if (!correct) {
+            recordWrongQuestion(makeMultiReviewEntry(
+                'ride-time-space',
+                '第四關：黑山頭・行軍時空對比',
+                '朝辭爺孃去，暮宿黃河邊，不聞爺孃喚女聲，但聞黃河流水鳴濺濺。\n旦辭黃河去，暮至黑山頭，不聞爺孃喚女聲，但聞燕山胡騎聲啾啾。',
+                '呼……在短短兩天之內，狂奔了數百公里，從溫暖的家鄉衝到了荒涼的前線。詩中利用「空間距離極遠（家鄉／黃河／黑山）」對比「行軍時間極短（朝／暮／旦／暮）」，營造出「行軍迅速與軍情緊急」。下列哪些詩句也運用了「距離極遠、時間極短」這樣的文學手法？（複選題）',
+                rideQuestionOptions,
+                [0, 1]
+            ));
+            applyPenalty(byId('ride-question-submit'));
+            feedback.className = 'mt-5 rounded-xl border-2 border-red-400 bg-red-950/70 text-red-100 p-4 font-bold leading-relaxed';
+            feedback.textContent = '再比較詩句中的地名與時間：哪些詩句寫出了在極短時間內迅速跨越遙遠地點？請重新選擇。';
+            return;
+        }
+
+        playBeep('success');
+        byId('ride-question-options').querySelectorAll('button').forEach(button => button.disabled = true);
+        byId('ride-question-submit').disabled = true;
+        feedback.className = 'mt-5 rounded-xl border-2 border-green-400 bg-green-950/70 text-green-100 p-4 font-bold leading-relaxed';
+        feedback.textContent = '答對了！A 連續跨越巴峽、巫峽、襄陽與洛陽；B 以「千里」和「一日」直接對比，都呈現距離極遠、時間極短的疾速感。';
+        window.setTimeout(() => completeCurrentLevel('screen-ride-question'), correctAnswerDelay);
+    }
+
+    function openBattleChallenge() {
+        battleRoundIndex = 0;
+        battleMulanHP = 100;
+        battleEnemyHP = 100;
+        battleInputLocked = false;
+        battleQuestionOrder = shuffleIndexes(battleQuestions.length);
+        byId('battle-result-overlay').classList.add('hidden');
+        renderBattleRound();
+        byId('screen-battle').classList.add('active');
+    }
+
+    function shuffleIndexes(length) {
+        const indexes = Array.from({ length }, (_, index) => index);
+        for (let index = indexes.length - 1; index > 0; index--) {
+            const swapIndex = Math.floor(Math.random() * (index + 1));
+            [indexes[index], indexes[swapIndex]] = [indexes[swapIndex], indexes[index]];
+        }
+        return indexes;
+    }
+
+    function updateBattleHud() {
+        byId('battle-mulan-hp-fill').style.width = `${battleMulanHP}%`;
+        byId('battle-enemy-hp-fill').style.width = `${battleEnemyHP}%`;
+    }
+
+    function renderBattleRound() {
+        battleInputLocked = false;
+        const question = battleQuestions[battleQuestionOrder[battleRoundIndex]];
+        byId('battle-title').textContent = `【 關卡 ${battleRoundIndex + 1}：戰場對決 】`;
+        byId('battle-question').textContent = question.question;
+        byId('battle-feedback').textContent = '塞外寒風刺骨，木蘭與匈奴首領在沙場中心對峙，殺氣騰騰！';
+        updateBattleHud();
+
+        const options = byId('battle-options');
+        options.innerHTML = '';
+        question.options.forEach((option, optionIndex) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'battle-option';
+            button.textContent = `（${String.fromCharCode(65 + optionIndex)}）${option}`;
+            button.addEventListener('click', () => answerBattleQuestion(optionIndex));
+            options.appendChild(button);
+        });
+    }
+
+    function answerBattleQuestion(selected) {
+        if (battleInputLocked) return;
+        battleInputLocked = true;
+        byId('battle-options').querySelectorAll('button').forEach(button => button.disabled = true);
+
+        const question = battleQuestions[battleQuestionOrder[battleRoundIndex]];
+        const correct = selected === question.answer;
+        if (correct) {
+            battleEnemyHP = Math.max(0, battleEnemyHP - 35);
+            playBattleEffect('木蘭出手精準，武器直擊匈奴首領，HP -35%。', true);
+        } else {
+            recordWrongQuestion(makeChoiceReviewEntry(
+                `battle-${battleQuestionOrder[battleRoundIndex]}`,
+                `第五關：戰場對決 ${battleRoundIndex + 1}`,
+                question.text,
+                question.question,
+                question.options,
+                question.answer
+            ));
+            mistakes += 1;
+            battleMulanHP = Math.max(0, battleMulanHP - 35);
+            battleEnemyHP = Math.min(100, battleEnemyHP + 35);
+            playBattleEffect('匈奴首領抓到破綻出手，武器擊中木蘭！木蘭 HP -35%，匈奴首領回血 35%。', false);
+        }
+
+        updateBattleHud();
+        window.setTimeout(() => {
+            if (battleEnemyHP <= 0) {
+                showBattleResult(true, '【K.O.！木蘭凱旋歸來，完美通關！】');
+                return;
+            }
+            if (battleMulanHP <= 0) {
+                showBattleResult(false, '【勝敗乃兵家常事，大俠請重新來過！】');
+                return;
+            }
+
+            battleRoundIndex += 1;
+            if (battleRoundIndex >= battleQuestions.length) {
+                const win = battleMulanHP >= battleEnemyHP;
+                showBattleResult(
+                    win,
+                    win
+                        ? '十回合結束，木蘭血量較高！【K.O.！木蘭凱旋歸來，完美通關！】'
+                        : '十回合結束，匈奴首領血量較高！【勝敗乃兵家常事，大俠請重新來過！】'
+                );
+                return;
+            }
+            renderBattleRound();
+        }, correct ? correctAnswerDelay : 1700);
+    }
+
+    function playBattleEffect(feedback, isMulanAttack) {
+        const projectile = byId('battle-projectile');
+        const mulan = byId('battle-mulan');
+        const enemy = byId('battle-enemy');
+        const weapon = battleWeapons[Math.floor(Math.random() * battleWeapons.length)];
+
+        projectile.src = weapon.src;
+        projectile.className = '';
+        void projectile.offsetWidth;
+        projectile.classList.add(weapon.className, isMulanAttack ? 'from-right' : 'from-left');
+        byId('battle-feedback').textContent = feedback;
+
+        mulan.classList.remove('battle-mulan-attack', 'battle-hit');
+        enemy.classList.remove('battle-enemy-attack', 'battle-hit');
+        void mulan.offsetWidth;
+        if (isMulanAttack) {
+            playBeep('success');
+            mulan.classList.add('battle-mulan-attack');
+            enemy.classList.add('battle-hit');
+            return;
+        }
+        playBeep('error');
+        enemy.classList.add('battle-enemy-attack');
+        mulan.classList.add('battle-hit');
+    }
+
+    function showBattleResult(win, message) {
+        battleResultIsWin = win;
+        byId('battle-result-title').textContent = win ? 'K.O.！' : 'RETRY?';
+        byId('battle-result-detail').textContent = message;
+        byId('battle-result-button').textContent = win ? '前往明堂' : '重新挑戰戰場';
+        byId('battle-result-overlay').classList.remove('hidden');
+    }
+
+    function openPalaceCatchChallenge() {
+        stopPalaceCatchGame();
+        palaceScore = 0;
+        palaceCatcherX = 50;
+        palaceSpawnElapsed = 0;
+        palaceLastFrame = 0;
+        palaceFallingItems = [];
+        byId('palace-score').textContent = '0';
+        byId('palace-catcher').style.left = '50%';
+        byId('palace-door').classList.remove('open');
+        byId('palace-catch-field').innerHTML = '';
+        byId('palace-catch-status').textContent = '移動木蘭的推車，接住真正需要的返鄉物資！';
+        byId('palace-start-overlay').classList.remove('hidden');
+        byId('palace-success-overlay').classList.add('hidden');
+        byId('screen-palace-catch').classList.add('active');
+    }
+
+    function startPalaceCatchGame() {
+        palaceGameRunning = true;
+        palaceLastFrame = 0;
+        palaceSpawnElapsed = 0.45;
+        byId('palace-start-overlay').classList.add('hidden');
+        palaceAnimationFrame = window.requestAnimationFrame(updatePalaceCatchGame);
+    }
+
+    function pickPalaceReward() {
+        let roll = Math.random() * 100;
+        for (const reward of palaceRewards) {
+            roll -= reward.weight;
+            if (roll <= 0) return reward;
+        }
+        return palaceRewards[palaceRewards.length - 1];
+    }
+
+    function spawnPalaceReward() {
+        const reward = pickPalaceReward();
+        const element = document.createElement('div');
+        element.className = `falling-reward ${reward.points > 0 ? 'positive' : 'negative'}`;
+        element.setAttribute('aria-label', `${reward.label}${reward.points > 0 ? '加' : '扣'}${Math.abs(reward.points)}分`);
+        const rewardVisual = reward.image
+            ? `<img src="${reward.image}" alt="">`
+            : `<b>${reward.icon}</b>`;
+        element.innerHTML = `${rewardVisual}<span>${reward.label}<br>${reward.points > 0 ? '＋' : '－'}${Math.abs(reward.points)}</span>`;
+        const item = {
+            element,
+            reward,
+            x: 6 + Math.random() * 84,
+            y: -15,
+            speed: 20 + Math.random() * 7
+        };
+        element.style.left = `${item.x}%`;
+        element.style.top = `${item.y}%`;
+        byId('palace-catch-field').appendChild(element);
+        palaceFallingItems.push(item);
+    }
+
+    function updatePalaceCatchGame(timestamp) {
+        if (!palaceGameRunning) return;
+        const deltaSeconds = palaceLastFrame ? Math.min((timestamp - palaceLastFrame) / 1000, 0.06) : 0;
+        palaceLastFrame = timestamp;
+        palaceSpawnElapsed += deltaSeconds;
+        if (palaceSpawnElapsed >= 0.68) {
+            palaceSpawnElapsed = 0;
+            spawnPalaceReward();
+        }
+
+        palaceFallingItems = palaceFallingItems.filter(item => {
+            item.y += item.speed * deltaSeconds;
+            item.element.style.top = `${item.y}%`;
+            if (item.y >= 69 && item.y <= 84 && Math.abs((item.x + 4) - palaceCatcherX) <= 12) {
+                catchPalaceReward(item);
+                return false;
+            }
+            if (item.y > 102) {
+                item.element.remove();
+                return false;
+            }
+            return true;
+        });
+        palaceAnimationFrame = window.requestAnimationFrame(updatePalaceCatchGame);
+    }
+
+    function catchPalaceReward(item) {
+        item.element.remove();
+        palaceScore = Math.max(0, palaceScore + item.reward.points);
+        byId('palace-score').textContent = palaceScore;
+        byId('palace-catch-status').textContent = `${item.reward.label} ${item.reward.points > 0 ? '＋' : '－'}${Math.abs(item.reward.points)} 分，目前 ${palaceScore} 分。`;
+        playBeep(item.reward.points > 0 ? 'success' : 'error');
+        if (palaceScore >= 50) finishPalaceCatchGame();
+    }
+
+    function movePalaceCatcher(event) {
+        if (!palaceGameRunning) return;
+        const bounds = byId('palace-catch-field').getBoundingClientRect();
+        palaceCatcherX = Math.max(11, Math.min(89, (event.clientX - bounds.left) / bounds.width * 100));
+        byId('palace-catcher').style.left = `${palaceCatcherX}%`;
+    }
+
+    function finishPalaceCatchGame() {
+        palaceGameRunning = false;
+        window.cancelAnimationFrame(palaceAnimationFrame);
+        palaceFallingItems.forEach(item => item.element.remove());
+        palaceFallingItems = [];
+        byId('palace-score').textContent = palaceScore;
+        byId('palace-door').classList.add('open');
+        byId('palace-catch-status').textContent = '累積 50 分，明堂大門開啟！';
+        byId('palace-success-overlay').classList.remove('hidden');
+        playBeep('success');
+        palaceTransitionTimer = window.setTimeout(() => {
+            byId('screen-palace-catch').classList.remove('active');
+            openStandardQuestion(5);
+        }, 1500);
+    }
+
+    function stopPalaceCatchGame() {
+        palaceGameRunning = false;
+        window.cancelAnimationFrame(palaceAnimationFrame);
+        window.clearTimeout(palaceTransitionTimer);
+        palaceFallingItems.forEach(item => item.element.remove());
+        palaceFallingItems = [];
+    }
+
+    function openRiverDreamChallenge() {
+        stopRiverSound();
+        byId('screen-river-dream').classList.remove('active');
+        const options = byId('river-question-options');
+        const feedback = byId('river-question-feedback');
+        options.innerHTML = '';
+        feedback.className = 'hidden mt-5 rounded-xl border-2 p-4 font-bold leading-relaxed';
+        feedback.textContent = '';
+
+        riverQuestionOptions.forEach((text, index) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'w-full bg-[#3a2920] hover:bg-[#5a3b28] border-2 border-[#76543b] px-4 py-3 rounded-xl text-left text-base md:text-lg font-bold transition-colors';
+            button.textContent = `（${['Ａ', 'Ｂ', 'Ｃ'][index]}）${text}`;
+            button.addEventListener('click', () => answerRiverQuestion(index, button));
+            options.appendChild(button);
+        });
+        byId('screen-river-question').classList.add('active');
+    }
+
+    function answerRiverQuestion(index, button) {
+        const feedback = byId('river-question-feedback');
+        if (index !== 2) {
+            recordWrongQuestion(makeChoiceReviewEntry(
+                'river-missing-parents',
+                '第三關：黃河邊',
+                '朝辭爺孃去，暮宿黃河邊，不聞爺孃喚女聲，但聞黃河流水鳴濺濺。\n旦辭黃河去，暮至黑山頭，不聞爺孃喚女聲，但聞燕山胡騎聲啾啾。',
+                '詩中重複出現「不聞爺孃喚女聲」用意為何？',
+                riverQuestionOptions,
+                2
+            ));
+            applyPenalty(button);
+            feedback.className = 'mt-5 rounded-xl border-2 border-red-400 bg-red-950/70 text-red-100 p-4 font-bold leading-relaxed';
+            feedback.textContent = index === 0
+                ? '再讀一次「不聞」與「但聞」的對比。離開父母後，木蘭聽見的只剩陌生而冰冷的戰地聲音，並不是感到輕鬆自由。'
+                : '這是樂府民歌反覆吟詠的手法。相同句子一再出現，是為了加深木蘭遠離家鄉、思念父母的情感。';
+            return;
+        }
+
+        playBeep('success');
+        byId('river-question-options').querySelectorAll('button').forEach(option => option.disabled = true);
+        feedback.className = 'mt-5 rounded-xl border-2 border-green-400 bg-green-950/70 text-green-100 p-4 font-bold leading-relaxed';
+        feedback.textContent = '答對了！反覆聽不見父母的呼喚，更凸顯木蘭身在異地、思念雙親的心情。';
+        window.setTimeout(() => {
+            byId('screen-river-question').classList.remove('active');
+            openRiverDreamScene();
+        }, correctAnswerDelay);
+    }
+
+    function openRiverDreamScene() {
+        dreamHammerEquipped = false;
+        brokenDreamBubbles = 0;
+        byId('river-reality').classList.add('hidden');
+        byId('dream-hammer').classList.remove('equipped');
+        byId('dream-hammer').setAttribute('aria-pressed', 'false');
+        byId('dream-hammer-label').textContent = '拿起錘子';
+        byId('river-dream-status').textContent = '先拿起錘子，再親手敲碎兩個夢境泡泡。';
+        byId('river-dream-status').classList.remove('hidden');
+        byId('river-dream-stage').querySelectorAll('.ochre-splash').forEach(splash => splash.remove());
+        document.querySelectorAll('.dream-bubble').forEach(bubble => {
+            bubble.disabled = false;
+            bubble.classList.remove('shattering');
+            delete bubble.dataset.broken;
+        });
+        byId('screen-river-dream').classList.add('active');
+        startRiverSound();
+    }
+
+    function equipDreamHammer() {
+        if (dreamHammerEquipped) return;
+        dreamHammerEquipped = true;
+        byId('dream-hammer').classList.add('equipped');
+        byId('dream-hammer').setAttribute('aria-pressed', 'true');
+        byId('dream-hammer-label').textContent = '錘子已拿起';
+        byId('river-dream-status').textContent = '點擊兩個粉色泡泡，把木蘭從思鄉的夢中喚醒。';
+    }
+
+    function breakDreamBubble(bubble) {
+        if (bubble.dataset.broken) return;
+        if (!dreamHammerEquipped) {
+            byId('river-dream-status').textContent = '要先拿起畫面下方的錘子，才能敲碎夢境泡泡。';
+            byId('dream-hammer').classList.add('shake');
+            window.setTimeout(() => byId('dream-hammer').classList.remove('shake'), 500);
+            return;
+        }
+
+        bubble.dataset.broken = 'true';
+        bubble.disabled = true;
+        bubble.classList.add('shattering');
+        playBubblePop();
+
+        const splash = document.createElement('div');
+        splash.className = 'ochre-splash';
+        splash.style.left = bubble.classList.contains('mother') ? '5%' : '69%';
+        splash.style.top = '9%';
+        byId('river-dream-stage').appendChild(splash);
+        window.setTimeout(() => splash.remove(), 800);
+
+        brokenDreamBubbles += 1;
+        byId('river-dream-status').textContent = brokenDreamBubbles === 1
+            ? '啪！溫暖的夢境化成冰冷水花，還剩一個泡泡。'
+            : '兩個夢境都碎了，黃河的激流聲迎面湧來……';
+        if (brokenDreamBubbles === 2) {
+            window.setTimeout(revealRiverReality, 560);
+        }
+    }
+
+    function revealRiverReality() {
+        intensifyRiverSound();
+        byId('river-dream-status').classList.add('hidden');
+        byId('dream-hammer').classList.add('hidden');
+        byId('river-reality').classList.remove('hidden');
+    }
+
+    function stopDressupTimer() {
+        if (dressupTimerId) window.clearInterval(dressupTimerId);
+        dressupTimerId = null;
+    }
+
+    function setDressupStep(step, status) {
+        const titles = {
+            1: 'Step 1　脫我戰時袍',
+            2: 'Step 2　著我舊時裳',
+            3: 'Step 3　當窗理雲鬢',
+            4: 'Step 4　對鏡貼花黃',
+            5: '換裝完成　準備盛裝登場'
+        };
+        dressupStep = step;
+        byId('dressup-step-title').textContent = titles[step];
+        byId('dressup-status').textContent = status;
+    }
+
+    function openDressupChallenge() {
+        stopDressupTimer();
+        endDressupDrag();
+        dressupSeconds = 90;
+        dressupBrushCount = 0;
+
+        const mulan = byId('dressup-mulan');
+        mulan.src = '木蘭-換裝軍裝-去背.png';
+        mulan.alt = '灰頭土臉、穿著戰時軍裝的木蘭';
+        mulan.dataset.drag = 'armor';
+        byId('undressed-label').classList.add('hidden');
+        byId('forehead-flower').classList.add('hidden');
+        byId('outfit-options').classList.add('hidden');
+        byId('dressup-finish').classList.add('hidden');
+        byId('dressup-reveal').classList.add('hidden');
+        byId('wardrobe-door').disabled = true;
+        byId('wardrobe-door').textContent = '打開舊衣櫥';
+        byId('dressup-comb').disabled = true;
+        byId('dressup-ornament').disabled = true;
+        byId('dressup-ornament').classList.add('hidden');
+        byId('brush-progress').textContent = '梳理雲鬢：0 / 6';
+        byId('dressup-seconds').textContent = dressupSeconds;
+        setDressupStep(1, '拖動木蘭身上的鐵甲，放進左側回收桶。');
+        byId('screen-dressup').classList.add('active');
+
+        dressupTimerId = window.setInterval(() => {
+            dressupSeconds -= 1;
+            byId('dressup-seconds').textContent = Math.max(0, dressupSeconds);
+            if (dressupSeconds > 0) return;
+            stopDressupTimer();
+            dressupStep = 0;
+            endDressupDrag();
+            playBeep('error');
+            byId('dressup-status').textContent = '火伴已在門外等急了！重新整理儀容，再試一次。';
+            window.setTimeout(openDressupChallenge, 1200);
+        }, 1000);
+    }
+
+    function pointInsideElement(x, y, element) {
+        const rect = element.getBoundingClientRect();
+        return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+    }
+
+    function makeDressupGhost(source, type) {
+        const sourceImage = source.dataset.dragPreview
+            ? Object.assign(new Image(), { src: source.dataset.dragPreview })
+            : source.tagName === 'IMG' ? source : source.querySelector('img');
+        let ghost;
+        if (sourceImage) {
+            ghost = sourceImage.cloneNode();
+        } else {
+            ghost = document.createElement('div');
+            ghost.textContent = type === 'comb' ? '🪮' : type === 'ornament' ? '✿' : '👗';
+            ghost.style.display = 'grid';
+            ghost.style.placeItems = 'center';
+            ghost.style.fontSize = '56px';
+        }
+        ghost.className = 'dressup-drag-ghost';
+        document.body.appendChild(ghost);
+        return ghost;
+    }
+
+    function setDressupDropHighlight(type, active) {
+        const target = type === 'armor'
+            ? byId('armor-bin')
+            : type === 'ornament'
+                ? byId('forehead-target')
+                : type === 'outfit'
+                    ? byId('dressup-model-stage')
+                    : null;
+        if (target) target.classList.toggle('drop-ready', active);
+    }
+
+    function beginDressupDrag(event) {
+        const source = event.currentTarget;
+        if (source.disabled) return;
+        const type = source.dataset.drag;
+        const validStep = (type === 'armor' && dressupStep === 1)
+            || (type === 'outfit' && dressupStep === 2)
+            || (type === 'comb' && dressupStep === 3)
+            || (type === 'ornament' && dressupStep === 4);
+        if (!validStep) return;
+
+        event.preventDefault();
+        dressupDrag = {
+            source,
+            type,
+            outfit: source.dataset.outfit,
+            ghost: makeDressupGhost(source, type),
+            lastBrushX: null,
+            lastBrushDirection: 0
+        };
+        moveDressupDrag(event);
+        setDressupDropHighlight(type, true);
+        window.addEventListener('pointermove', moveDressupDrag);
+        window.addEventListener('pointerup', finishDressupDrag, { once: true });
+    }
+
+    function moveDressupDrag(event) {
+        if (!dressupDrag) return;
+        dressupDrag.ghost.style.left = `${event.clientX}px`;
+        dressupDrag.ghost.style.top = `${event.clientY}px`;
+        if (dressupDrag.type !== 'comb' || dressupStep !== 3) return;
+
+        const hairTarget = byId('hair-target');
+        if (!pointInsideElement(event.clientX, event.clientY, hairTarget)) return;
+        if (dressupDrag.lastBrushX === null) {
+            dressupDrag.lastBrushX = event.clientX;
+            return;
+        }
+        const deltaX = event.clientX - dressupDrag.lastBrushX;
+        if (Math.abs(deltaX) < 18) return;
+        const direction = Math.sign(deltaX);
+        if (!dressupDrag.lastBrushDirection || direction !== dressupDrag.lastBrushDirection) {
+            dressupBrushCount = Math.min(6, dressupBrushCount + 1);
+            byId('brush-progress').textContent = `梳理雲鬢：${dressupBrushCount} / 6`;
+            dressupDrag.lastBrushDirection = direction;
+            if (dressupBrushCount === 6) {
+                byId('dressup-mulan').src = '木蘭-換裝襦裙-梳妝髮髻-去背.png';
+                byId('dressup-mulan').alt = '穿著襦裙、梳妝後容光煥發的木蘭';
+                playBeep('success');
+                byId('dressup-comb').disabled = true;
+                byId('dressup-ornament').disabled = false;
+                byId('dressup-ornament').classList.remove('hidden');
+                setDressupStep(4, '雲鬢已梳理整齊！將黃色梅花額飾拖到木蘭額頭中央。');
+            }
+        }
+        dressupDrag.lastBrushX = event.clientX;
+    }
+
+    function finishDressupDrag(event) {
+        if (!dressupDrag) return;
+        const { type, source, outfit } = dressupDrag;
+
+        if (type === 'armor' && pointInsideElement(event.clientX, event.clientY, byId('armor-bin'))) {
+            const mulan = byId('dressup-mulan');
+            mulan.src = '木蘭-換裝底圖-去背.png';
+            mulan.alt = '灰頭土臉、穿著白色內裡衣的木蘭';
+            delete mulan.dataset.drag;
+            byId('wardrobe-door').disabled = false;
+            playBeep('success');
+            setDressupStep(2, '戰袍已卸下！點擊打開衣櫥，挑選木蘭的舊時衣裳。');
+        } else if (type === 'outfit' && pointInsideElement(event.clientX, event.clientY, byId('dressup-model-stage'))) {
+            if (outfit === 'ruqun') {
+                const mulan = byId('dressup-mulan');
+                mulan.src = '木蘭-換裝襦裙-灰頭土臉-去背.png';
+                mulan.alt = '仍帶風塵、換上粉綠北朝襦裙的木蘭';
+                byId('undressed-label').classList.add('hidden');
+                byId('dressup-comb').disabled = false;
+                playBeep('success');
+                setDressupStep(3, '選對了！拿起梳子，在木蘭頭髮上左右來回梳理。');
+            } else {
+                playBeep('error');
+                source.classList.add('dressup-shake');
+                window.setTimeout(() => source.classList.remove('dressup-shake'), 650);
+                byId('dressup-status').textContent = outfit === 'official'
+                    ? '尚書郎官服不是木蘭返鄉後的舊時女裝，再看看衣櫥。'
+                    : '木蘭才剛脫下戰時軍裝，返鄉後應換回舊時女裝。';
+            }
+        } else if (type === 'ornament' && pointInsideElement(event.clientX, event.clientY, byId('forehead-target'))) {
+            byId('forehead-flower').classList.remove('hidden');
+            byId('dressup-ornament').disabled = true;
+            byId('dressup-finish').classList.remove('hidden');
+            playBeep('success');
+            setDressupStep(5, '花黃已貼好！木蘭恢復昔日模樣，準備讓火伴們大吃一驚。');
+        } else if (type !== 'comb') {
+            byId('dressup-status').textContent = '還沒放到正確位置，再拖一次試試看！';
+        }
+        endDressupDrag();
+    }
+
+    function endDressupDrag() {
+        window.removeEventListener('pointermove', moveDressupDrag);
+        window.removeEventListener('pointerup', finishDressupDrag);
+        if (!dressupDrag) return;
+        setDressupDropHighlight(dressupDrag.type, false);
+        dressupDrag.ghost.remove();
+        dressupDrag = null;
+    }
+
+    function playCompanionGasp() {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        try {
+            if (!audioCtx) audioCtx = new AudioContext();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        } catch (error) {
+            return;
+        }
+        const duration = 0.65;
+        const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * duration, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let index = 0; index < data.length; index += 1) data[index] = Math.random() * 2 - 1;
+        const source = audioCtx.createBufferSource();
+        const filter = audioCtx.createBiquadFilter();
+        const gain = audioCtx.createGain();
+        const now = audioCtx.currentTime;
+        source.buffer = buffer;
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(650, now);
+        filter.frequency.exponentialRampToValueAtTime(1500, now + duration);
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(0.16, now + 0.12);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+        source.connect(filter).connect(gain).connect(audioCtx.destination);
+        source.start(now);
+    }
+
+    function finishDressupChallenge() {
+        if (dressupStep !== 5) return;
+        dressupStep = 0;
+        stopDressupTimer();
+        playCompanionGasp();
+        byId('dressup-reveal').classList.remove('hidden');
+    }
+
+    function openRabbitChallenge() {
+        const arena = byId('rabbit-arena');
+        const positions = [
+            { left: 5, top: 8, dx: 46, dy: 24, speed: 2.8 },
+            { left: 25, top: 6, dx: -35, dy: 40, speed: 3.4 },
+            { left: 47, top: 10, dx: 42, dy: 30, speed: 3.0 },
+            { left: 70, top: 5, dx: -46, dy: 38, speed: 3.7 },
+            { left: 83, top: 33, dx: -35, dy: -28, speed: 2.9 },
+            { left: 8, top: 52, dx: 38, dy: -30, speed: 3.5 },
+            { left: 29, top: 60, dx: 45, dy: -25, speed: 3.1 },
+            { left: 54, top: 57, dx: -42, dy: -32, speed: 3.8 },
+            { left: 74, top: 63, dx: 30, dy: -38, speed: 3.2 }
+        ];
+        const rabbitTypes = ['female', 'female', 'female', 'male', 'male', 'male', 'male', 'male', 'male']
+            .sort(() => Math.random() - 0.5);
+        let femaleCount = 0;
+
+        arena.innerHTML = '';
+        byId('rabbit-count').textContent = '0';
+        byId('rabbit-status').textContent = '兔子都背對著你，點擊一隻讓它轉身！';
+
+        positions.forEach((position, index) => {
+            const rabbit = document.createElement('button');
+            rabbit.type = 'button';
+            rabbit.className = 'rabbit-target';
+            rabbit.style.left = `${position.left}%`;
+            rabbit.style.top = `${position.top}%`;
+            rabbit.style.setProperty('--dx', `${position.dx}px`);
+            rabbit.style.setProperty('--dy', `${position.dy}px`);
+            rabbit.style.setProperty('--speed', `${position.speed}s`);
+            rabbit.setAttribute('aria-label', `背對的兔子 ${index + 1}`);
+
+            const image = document.createElement('img');
+            image.src = '兔子-背面-去背.png';
+            image.alt = '';
+            rabbit.appendChild(image);
+
+            rabbit.addEventListener('click', () => {
+                if (rabbit.dataset.revealed) return;
+                rabbit.dataset.revealed = 'true';
+                rabbit.classList.add('revealed', rabbitTypes[index]);
+
+                if (rabbitTypes[index] === 'female') {
+                    image.src = '雌兔-正面-去背.png';
+                    rabbit.setAttribute('aria-label', '眼神迷離的雌兔');
+                    femaleCount += 1;
+                    byId('rabbit-count').textContent = femaleCount;
+                    playBeep('success');
+                    byId('rabbit-status').textContent = `找到第 ${femaleCount} 隻雌兔！她的眼神果然十分迷離。`;
+
+                    if (femaleCount === 3) {
+                        arena.querySelectorAll('button').forEach(button => button.disabled = true);
+                        byId('rabbit-status').textContent = '三隻雌兔都找到了！接著進入詩意挑戰。';
+                        window.setTimeout(() => {
+                            byId('screen-rabbit').classList.remove('active');
+                            openStandardQuestion(6);
+                        }, 1200);
+                    }
+                } else {
+                    image.src = '雄兔-正面-去背.png';
+                    rabbit.setAttribute('aria-label', '不斷踢腳的雄兔');
+                    byId('rabbit-status').textContent = '這是雄兔！你看，它正不斷地踢腳。';
+                }
+            });
+            arena.appendChild(rabbit);
+        });
+
+        byId('screen-rabbit').classList.add('active');
+    }
+
+    function openMarketChallenge() {
+        marketShopIndex = -1;
+        marketPurchasedShops = new Set();
+        marketInputLocked = false;
+        byId('screen-market-question').classList.remove('active');
+        byId('screen-market-departure').classList.remove('active');
+        byId('market-horse').className = 'market-character-image hidden';
+        byId('market-mulan').className = 'market-character-image';
+        byId('market-mulan-whip').className = 'market-character-image hidden';
+        ['equip-saddle', 'equip-bridle'].forEach(id => byId(id).classList.add('hidden'));
+        byId('market-equipment-count').textContent = '已採購 0 / 4';
+        byId('market-status').textContent = '';
+        renderMarketShop();
+        byId('screen-market').classList.add('active');
+    }
+
+    function renderMarketTabs() {
+        const progress = byId('market-progress');
+        progress.innerHTML = '';
+        marketShops.forEach((item, index) => {
+            const purchased = marketPurchasedShops.has(index);
+            const selected = index === marketShopIndex;
+            const step = document.createElement('button');
+            step.type = 'button';
+            step.className = `rounded-lg px-2 py-2 text-center text-sm font-black border transition-colors disabled:cursor-not-allowed ${purchased ? 'bg-green-800 border-green-400 text-white' : selected ? 'bg-amber-700 border-yellow-300 text-white' : 'bg-[#1b120d] hover:bg-[#4a2f20] border-[#76543b] text-[#f5e7d0]'}`;
+            step.textContent = purchased ? `✓ ${item.direction}` : item.direction;
+            step.disabled = purchased || marketInputLocked;
+            step.addEventListener('click', () => selectMarketShop(index));
+            progress.appendChild(step);
+        });
+    }
+
+    function selectMarketShop(index) {
+        if (marketInputLocked || marketPurchasedShops.has(index)) return;
+        marketShopIndex = index;
+        renderMarketShop();
+    }
+
+    function renderMarketShop() {
+        renderMarketTabs();
+        const options = byId('market-options');
+        options.innerHTML = '';
+        byId('market-status').textContent = '';
+
+        if (marketShopIndex === -1) {
+            byId('market-shop-name').textContent = '自由選擇市場';
+            byId('market-prompt').textContent = '請點擊上方的東市、西市、南市或北市，前往採購。';
+            return;
+        }
+
+        const shop = marketShops[marketShopIndex];
+        byId('market-shop-name').textContent = shop.direction;
+        byId('market-prompt').textContent = `詩句說木蘭在${shop.direction}買了什麼？`;
+        shop.choices.forEach(item => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'w-full bg-[#3a2920] hover:bg-[#5a3b28] border-2 border-[#76543b] px-5 py-3 rounded-xl text-left text-lg font-bold transition-colors';
+            button.textContent = item;
+            button.addEventListener('click', () => chooseMarketItem(item, button));
+            options.appendChild(button);
+        });
+    }
+
+    function chooseMarketItem(item, button) {
+        if (marketInputLocked || marketShopIndex === -1) return;
+        const shop = marketShops[marketShopIndex];
+        if (item !== shop.correct) {
+            applyPenalty(button);
+            byId('market-status').textContent = `這不是${shop.direction}要買的裝備，再看一次詩句！`;
+            byId('market-status').className = 'mt-4 min-h-7 font-bold text-red-400';
+            return;
+        }
+
+        playBeep('success');
+        marketInputLocked = true;
+        marketPurchasedShops.add(marketShopIndex);
+        byId('market-options').querySelectorAll('button').forEach(option => option.disabled = true);
+        updateHorseEquipment();
+        renderMarketTabs();
+        byId('market-status').className = 'mt-4 min-h-7 font-bold text-[#86efac]';
+        const hasHorse = marketPurchasedShops.has(0);
+        byId('market-status').textContent = shop.correct === '長鞭'
+            ? '購得長鞭！已交到木蘭手中。'
+            : shop.correct !== '駿馬' && !hasHorse
+                ? `購得${shop.correct}！待駿馬購入後即可裝備。`
+                : `購得${shop.correct}！已裝備到戰馬上。`;
+
+        if (marketPurchasedShops.size === marketShops.length) {
+            byId('market-prompt').textContent = '四市採購完成，木蘭已備齊出征裝備！';
+            window.setTimeout(showMarketQuestion, marketPurchaseDelay);
+        } else {
+            window.setTimeout(() => {
+                marketShopIndex = -1;
+                marketInputLocked = false;
+                renderMarketShop();
+            }, marketPurchaseDelay);
+        }
+    }
+
+    function showMarketQuestion() {
+        byId('screen-market').classList.remove('active');
+        const options = byId('market-question-options');
+        const feedback = byId('market-question-feedback');
+        options.innerHTML = '';
+        feedback.className = 'hidden mt-5 rounded-xl border-2 p-4 font-bold leading-relaxed';
+        feedback.textContent = '';
+
+        marketQuestionOptions.forEach((text, index) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'w-full bg-[#3a2920] hover:bg-[#5a3b28] border-2 border-[#76543b] px-4 py-3 rounded-xl text-left text-base md:text-lg font-bold transition-colors';
+            button.textContent = `（${['Ａ', 'Ｂ', 'Ｃ'][index]}）${text}`;
+            button.addEventListener('click', () => answerMarketQuestion(index, button));
+            options.appendChild(button);
+        });
+        byId('screen-market-question').classList.add('active');
+    }
+
+    function answerMarketQuestion(index, button) {
+        const feedback = byId('market-question-feedback');
+        if (index !== 0) {
+            recordWrongQuestion(makeChoiceReviewEntry(
+                'market-secret',
+                '第二關：任務二　採購的祕密',
+                '東市買駿馬，西市買鞍韉，南市買轡頭，北市買長鞭。',
+                '呼～跑遍了各大市場，木蘭終於買齊了所有裝備！不過仔細想想，木蘭為什麼不直接在同一家店買齊，反而辛苦地跑遍東西南北市呢？',
+                marketQuestionOptions,
+                0
+            ));
+            applyPenalty(button);
+            feedback.className = 'mt-5 rounded-xl border-2 border-red-400 bg-red-950/70 text-red-100 p-4 font-bold leading-relaxed';
+            feedback.textContent = '再想想看：這四句著重的是民歌的鋪陳，以及木蘭整裝時快速、忙碌的情景。';
+            return;
+        }
+
+        playBeep('success');
+        const options = byId('market-question-options');
+        options.querySelectorAll('button').forEach(option => option.disabled = true);
+        feedback.className = 'mt-5 rounded-xl border-2 border-green-400 bg-green-950/70 text-green-100 p-4 font-bold leading-relaxed';
+        feedback.textContent = '答對了！你讀出了樂府民歌反覆鋪陳的特色。';
+        window.setTimeout(showMarketDeparture, correctAnswerDelay);
+    }
+
+    function showMarketDeparture() {
+        byId('screen-market').classList.remove('active');
+        byId('screen-market-question').classList.remove('active');
+        byId('screen-market-departure').classList.add('active');
+    }
+
+    function updateHorseEquipment() {
+        const purchasedItems = new Set([...marketPurchasedShops].map(index => marketShops[index].correct));
+        const hasHorse = purchasedItems.has('駿馬');
+        byId('market-horse').classList.toggle('hidden', !hasHorse);
+        byId('equip-saddle').classList.toggle('hidden', !hasHorse || !purchasedItems.has('鞍韉'));
+        byId('equip-bridle').classList.toggle('hidden', !hasHorse || !purchasedItems.has('轡頭'));
+        byId('market-mulan').classList.toggle('hidden', purchasedItems.has('長鞭'));
+        byId('market-mulan-whip').classList.toggle('hidden', !purchasedItems.has('長鞭'));
+        byId('market-equipment-count').textContent = `已採購 ${marketPurchasedShops.size} / 4`;
+    }
+
+    function applyPenalty(button) {
+        mistakes += 1;
+        penaltySeconds += 5;
+        playBeep('error');
+        button.classList.add('shake', 'border-red-500', 'bg-red-900');
+        window.setTimeout(() => button.classList.remove('shake', 'border-red-500', 'bg-red-900'), 500);
+        const toast = byId('penalty-toast');
+        toast.classList.remove('hidden');
+        requestAnimationFrame(() => toast.classList.remove('opacity-0'));
+        window.setTimeout(() => {
+            toast.classList.add('opacity-0');
+            window.setTimeout(() => toast.classList.add('hidden'), 300);
+        }, 1200);
+        updateTimer();
+    }
+
+    function answerQuestion(selected, button) {
+        const level = levels[activeChallengeLevel];
+        if (selected !== level.answer) {
+            recordWrongQuestion(makeLevelReviewEntry(activeChallengeLevel));
+            applyPenalty(button);
+            return;
+        }
+
+        playBeep('success');
+        byId('q-modal-options').querySelectorAll('button').forEach(optionButton => optionButton.disabled = true);
+        const feedback = byId('q-modal-feedback');
+        feedback.className = 'mt-5 rounded-xl border-2 border-green-400 bg-green-950/70 text-green-100 p-4 font-bold leading-relaxed';
+        feedback.textContent = activeChallengeLevel === 5
+            ? '答對了！木蘭不慕官位與賞賜，只願得到代步工具，立即返回故鄉與父母團聚。'
+            : '答對了！雙兔之喻讚美木蘭機智勇敢，能力不輸男子。';
+        window.setTimeout(() => completeCurrentLevel('screen-question'), correctAnswerDelay);
+    }
+
+    function completeCurrentLevel(screenId) {
+        stopRiverSound();
+        stopBattleWarningSound();
+        stopPalaceCatchGame();
+        rideRunning = false;
+        window.cancelAnimationFrame(rideAnimationFrame);
+        window.clearTimeout(rideTransitionTimer);
+        byId(screenId).classList.remove('active');
+        if (activeChallengeLevel === currentLevel) {
+            currentLevel += 1;
+            if (currentLevel === levels.length) {
+                finishGame();
+                return;
+            }
+        }
+        renderMap();
+    }
+
+    function startMistakeReview() {
+        byId('mistake-review-panel').classList.remove('hidden');
+        if (!wrongQuestionLog.length) {
+            showMistakeReviewVictory('太厲害了！本次遠征沒有留下錯題，已是戰功彪炳。');
+            return;
+        }
+        mistakeReviewIndex = 0;
+        renderMistakeReviewQuestion();
+    }
+
+    function renderMistakeReviewQuestion() {
+        const entry = wrongQuestionLog[mistakeReviewIndex];
+        byId('mistake-review-panel').classList.add('max-h-[46vh]', 'overflow-y-auto');
+        mistakeReviewSelections = new Set();
+        byId('mistake-review-progress').textContent = `溫故知新沙場：第 ${mistakeReviewIndex + 1} / ${wrongQuestionLog.length} 題　${entry.title}`;
+        const textBox = byId('mistake-review-text');
+        textBox.textContent = entry.text || '';
+        textBox.classList.toggle('hidden', !entry.text);
+        byId('mistake-review-question').textContent = entry.question;
+        byId('mistake-review-feedback').textContent = '';
+
+        const options = byId('mistake-review-options');
+        options.innerHTML = '';
+        byId('mistake-review-submit').classList.toggle('hidden', !entry.multi);
+        entry.options.forEach((option, index) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'w-full bg-[#3a2920] hover:bg-[#5a3b28] border-2 border-[#76543b] px-4 py-2.5 rounded-xl text-left text-base font-bold transition-colors';
+            button.textContent = `（${['Ａ', 'Ｂ', 'Ｃ', 'Ｄ', 'Ｅ'][index] || String.fromCharCode(65 + index)}）${option}`;
+            if (entry.multi) {
+                button.setAttribute('aria-pressed', 'false');
+                button.addEventListener('click', () => toggleMistakeReviewOption(index, button));
+            } else {
+                button.addEventListener('click', () => answerMistakeReview(index));
+            }
+            options.appendChild(button);
+        });
+    }
+
+    function toggleMistakeReviewOption(index, button) {
+        if (mistakeReviewSelections.has(index)) {
+            mistakeReviewSelections.delete(index);
+        } else {
+            mistakeReviewSelections.add(index);
+        }
+        const selected = mistakeReviewSelections.has(index);
+        button.classList.toggle('bg-[#7c2d12]', selected);
+        button.classList.toggle('border-[#facc15]', selected);
+        button.setAttribute('aria-pressed', String(selected));
+    }
+
+    function submitMistakeReviewAnswer() {
+        answerMistakeReview(null);
+    }
+
+    function answerMistakeReview(selectedIndex) {
+        const entry = wrongQuestionLog[mistakeReviewIndex];
+        const correct = entry.multi
+            ? entry.answers.length === mistakeReviewSelections.size
+                && entry.answers.every(answer => mistakeReviewSelections.has(answer))
+            : selectedIndex === entry.answer;
+        const feedback = byId('mistake-review-feedback');
+        if (!correct) {
+            playBeep('error');
+            feedback.textContent = '【再接再厲！】先停在這題，重新思考後再作答。';
+            feedback.className = 'mt-3 min-h-7 text-center font-black text-red-300';
+            return;
+        }
+
+        playBeep('success');
+        feedback.textContent = '【破敵成功】';
+        feedback.className = 'mt-3 min-h-7 text-center font-black text-green-300';
+        byId('mistake-review-options').querySelectorAll('button').forEach(button => button.disabled = true);
+        byId('mistake-review-submit').disabled = true;
+        window.setTimeout(() => {
+            mistakeReviewIndex += 1;
+            byId('mistake-review-submit').disabled = false;
+            if (mistakeReviewIndex >= wrongQuestionLog.length) {
+                wrongQuestionLog = [];
+                wrongQuestionIds.clear();
+                showMistakeReviewVictory();
+                return;
+            }
+            renderMistakeReviewQuestion();
+        }, 900);
+    }
+
+    function showMistakeReviewVictory(message = '勝敗乃兵家常事，唯有從錯誤中學習並徹底融會貫通的人，才是真正的常勝將軍！') {
+        byId('mistake-review-button').textContent = '千錘百鍊';
+        byId('mistake-review-panel').classList.remove('max-h-[46vh]', 'overflow-y-auto');
+        byId('mistake-review-progress').textContent = '圓滿結局';
+        byId('mistake-review-text').classList.add('hidden');
+        byId('mistake-review-question').innerHTML = `
+            <span class="block text-center text-3xl md:text-4xl text-[#facc15] mb-3">戰功彪炳！</span>
+            <span class="block text-center text-base md:text-xl leading-relaxed text-[#fef08a]">${message}</span>
+        `;
+        byId('mistake-review-options').innerHTML = '';
+        byId('mistake-review-submit').classList.add('hidden');
+        byId('mistake-review-feedback').textContent = '獲得稱號：戰功彪炳';
+        byId('mistake-review-feedback').className = 'mt-3 min-h-7 text-center font-black text-[#facc15]';
+    }
+
+    function finishGame() {
+        window.clearInterval(timerId);
+        updateTimer();
+        byId('final-time').textContent = byId('timer-display').textContent;
+        byId('final-mistakes').textContent = mistakes;
+        byId('final-penalty').textContent = penaltySeconds;
+        byId('mistake-review-panel').classList.add('hidden');
+        byId('mistake-review-button').textContent = wrongQuestionLog.length
+            ? `千錘百鍊（${wrongQuestionLog.length} 題）`
+            : '千錘百鍊';
+        byId('screen-result').classList.add('active');
+    }
+
+    window.startGame = startGame;
+    window.addEventListener('keydown', event => {
+        const key = event.key.toLowerCase();
+        if (!movementVectors[key] || !gameStarted || document.querySelector('.screen.active')) return;
+        event.preventDefault();
+        if (autoTravel) {
+            autoTravel = null;
+        }
+        pressedMovementKeys.add(key);
+    });
+    window.addEventListener('keyup', event => {
+        const key = event.key.toLowerCase();
+        if (!movementVectors[key]) return;
+        event.preventDefault();
+        pressedMovementKeys.delete(key);
+    });
+    window.addEventListener('blur', () => pressedMovementKeys.clear());
+    byId('home-expression-button').addEventListener('click', openHomeQuestion);
+    byId('home-continue-button').addEventListener('click', () => {
+        stopWeavingSound();
+        if (homeTaskIndex === 0) {
+            homeTaskIndex = 1;
+            byId('home-success-panel').classList.add('hidden');
+            openHomeQuestion();
+            return;
+        }
+        completeCurrentLevel('screen-home');
+    });
+    byId('market-departure-button').addEventListener('click', () => {
+        completeCurrentLevel('screen-market-departure');
+    });
+    byId('dream-hammer').addEventListener('click', equipDreamHammer);
+    document.querySelectorAll('.dream-bubble').forEach(bubble => {
+        bubble.addEventListener('click', () => breakDreamBubble(bubble));
+    });
+    byId('river-continue-button').addEventListener('click', () => {
+        byId('dream-hammer').classList.remove('hidden');
+        completeCurrentLevel('screen-river-dream');
+    });
+    byId('ride-fast-button').addEventListener('click', accelerateRide);
+    byId('ride-dodge-button').addEventListener('click', dodgeRideArrow);
+    byId('ride-result-action').addEventListener('click', () => {
+        if (byId('ride-result-action').dataset.action === 'retry') {
+            setupRideStage(rideStageIndex);
+            return;
+        }
+        byId('screen-ride').classList.remove('active');
+        openRideQuestion();
+    });
+    byId('ride-question-submit').addEventListener('click', submitRideQuestion);
+    byId('battle-result-button').addEventListener('click', () => {
+        if (!battleResultIsWin) {
+            openBattleChallenge();
+            return;
+        }
+        completeCurrentLevel('screen-battle');
+    });
+    byId('palace-start-button').addEventListener('click', startPalaceCatchGame);
+    byId('palace-catch-field').addEventListener('pointerdown', movePalaceCatcher);
+    byId('palace-catch-field').addEventListener('pointermove', movePalaceCatcher);
+    byId('wardrobe-door').addEventListener('click', () => {
+        if (dressupStep !== 2) return;
+        const options = byId('outfit-options');
+        options.classList.toggle('hidden');
+        byId('wardrobe-door').textContent = options.classList.contains('hidden') ? '打開舊衣櫥' : '收起舊衣櫥';
+        byId('dressup-status').textContent = options.classList.contains('hidden')
+            ? '再次打開衣櫥，挑選木蘭的舊時衣裳。'
+            : '把正確的衣裳拖到木蘭身上。';
+    });
+    document.querySelectorAll('.dressup-drag-source').forEach(source => {
+        source.addEventListener('pointerdown', beginDressupDrag);
+    });
+    byId('dressup-finish').addEventListener('click', finishDressupChallenge);
+    byId('dressup-reveal-next').addEventListener('click', () => {
+        byId('screen-dressup').classList.remove('active');
+        byId('dressup-reveal').classList.add('hidden');
+        openRabbitChallenge();
+    });
+    byId('return-map-button').addEventListener('click', () => {
+        byId('screen-result').classList.remove('active');
+        renderMap();
+    });
+    byId('mistake-review-button').addEventListener('click', startMistakeReview);
+    byId('mistake-review-submit').addEventListener('click', submitMistakeReviewAnswer);
+    walkingPlayerImages.forEach(src => {
+        const image = new Image();
+        image.src = src;
+    });
+    renderMap();
+    window.requestAnimationFrame(movementLoop);
+</script>
+</body>
+</html>
