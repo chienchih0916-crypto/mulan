@@ -3113,12 +3113,12 @@
             byId('home-question-text').textContent = '願為市鞍馬，從此替爺征。';
         }
 
-        questionOptions.forEach((option, index) => {
+        shuffledOptions(questionOptions).forEach(({ value: option, originalIndex }, displayIndex) => {
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'w-full bg-[#3a2920] hover:bg-[#5a3b28] border-2 border-[#76543b] px-4 py-3 rounded-xl text-left text-base md:text-lg font-bold transition-colors';
-            button.textContent = `（${option.label}）${option.text}`;
-            button.addEventListener('click', () => answerHomeQuestion(index, button));
+            button.textContent = `（${['Ａ', 'Ｂ', 'Ｃ', 'Ｄ'][displayIndex]}）${option.text}`;
+            button.addEventListener('click', () => answerHomeQuestion(originalIndex, button));
             options.appendChild(button);
         });
         byId('screen-home-question').classList.add('active');
@@ -3188,12 +3188,12 @@
         options.innerHTML = '';
         feedback.className = 'hidden mt-5 rounded-xl border-2 p-4 font-bold leading-relaxed';
         feedback.textContent = '';
-        level.options.forEach((option, optionIndex) => {
+        shuffledOptions(level.options).forEach(({ value: option, originalIndex }, displayIndex) => {
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'w-full bg-[#3a2920] hover:bg-[#5a3b28] border-2 border-[#76543b] px-5 py-3 rounded-xl text-left text-lg font-bold transition-colors';
-            button.textContent = `（${['Ａ', 'Ｂ', 'Ｃ'][optionIndex]}）${option}`;
-            button.addEventListener('click', () => answerQuestion(optionIndex, button));
+            button.textContent = `（${['Ａ', 'Ｂ', 'Ｃ', 'Ｄ'][displayIndex]}）${option}`;
+            button.addEventListener('click', () => answerQuestion(originalIndex, button));
             options.appendChild(button);
         });
         byId('screen-question').classList.add('active');
@@ -3416,19 +3416,19 @@
         feedback.textContent = '';
         byId('ride-question-submit').disabled = false;
 
-        rideQuestionOptions.forEach((text, index) => {
+        shuffledOptions(rideQuestionOptions).forEach(({ value: text, originalIndex }, displayIndex) => {
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'ride-question-option w-full bg-[#3a2920] hover:bg-[#5a3b28] border-2 border-[#76543b] px-4 py-3 rounded-xl text-left text-base md:text-lg font-bold transition-colors';
-            button.textContent = `（${['Ａ', 'Ｂ', 'Ｃ', 'Ｄ', 'Ｅ'][index]}）${text}`;
+            button.textContent = `（${['Ａ', 'Ｂ', 'Ｃ', 'Ｄ', 'Ｅ'][displayIndex]}）${text}`;
             button.setAttribute('aria-pressed', 'false');
             button.addEventListener('click', () => {
-                if (rideQuestionSelections.has(index)) {
-                    rideQuestionSelections.delete(index);
+                if (rideQuestionSelections.has(originalIndex)) {
+                    rideQuestionSelections.delete(originalIndex);
                 } else {
-                    rideQuestionSelections.add(index);
+                    rideQuestionSelections.add(originalIndex);
                 }
-                const selected = rideQuestionSelections.has(index);
+                const selected = rideQuestionSelections.has(originalIndex);
                 button.classList.toggle('selected', selected);
                 button.setAttribute('aria-pressed', String(selected));
             });
@@ -3467,7 +3467,7 @@
         byId('ride-question-options').querySelectorAll('button').forEach(button => button.disabled = true);
         byId('ride-question-submit').disabled = true;
         feedback.className = 'mt-5 rounded-xl border-2 border-green-400 bg-green-950/70 text-green-100 p-4 font-bold leading-relaxed';
-        feedback.textContent = '答對了！A 連續跨越巴峽、巫峽、襄陽與洛陽；B 以「千里」和「一日」直接對比，都呈現距離極遠、時間極短的疾速感。';
+        feedback.textContent = '答對了！杜甫詩句連續跨越巴峽、巫峽、襄陽與洛陽；李白詩句以「千里」和「一日」直接對比，都呈現距離極遠、時間極短的疾速感。';
         window.setTimeout(() => completeCurrentLevel('screen-ride-question'), correctAnswerDelay);
     }
 
@@ -3491,6 +3491,13 @@
         return indexes;
     }
 
+    function shuffledOptions(items) {
+        return shuffleIndexes(items.length).map(originalIndex => ({
+            originalIndex,
+            value: items[originalIndex]
+        }));
+    }
+
     function updateBattleHud() {
         byId('battle-mulan-hp-fill').style.width = `${battleMulanHP}%`;
         byId('battle-enemy-hp-fill').style.width = `${battleEnemyHP}%`;
@@ -3506,12 +3513,12 @@
 
         const options = byId('battle-options');
         options.innerHTML = '';
-        question.options.forEach((option, optionIndex) => {
+        shuffledOptions(question.options).forEach(({ value: option, originalIndex }, displayIndex) => {
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'battle-option';
-            button.textContent = `（${String.fromCharCode(65 + optionIndex)}）${option}`;
-            button.addEventListener('click', () => answerBattleQuestion(optionIndex));
+            button.textContent = `（${String.fromCharCode(65 + displayIndex)}）${option}`;
+            button.addEventListener('click', () => answerBattleQuestion(originalIndex));
             options.appendChild(button);
         });
     }
@@ -3732,12 +3739,12 @@
         feedback.className = 'hidden mt-5 rounded-xl border-2 p-4 font-bold leading-relaxed';
         feedback.textContent = '';
 
-        riverQuestionOptions.forEach((text, index) => {
+        shuffledOptions(riverQuestionOptions).forEach(({ value: text, originalIndex }, displayIndex) => {
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'w-full bg-[#3a2920] hover:bg-[#5a3b28] border-2 border-[#76543b] px-4 py-3 rounded-xl text-left text-base md:text-lg font-bold transition-colors';
-            button.textContent = `（${['Ａ', 'Ｂ', 'Ｃ'][index]}）${text}`;
-            button.addEventListener('click', () => answerRiverQuestion(index, button));
+            button.textContent = `（${['Ａ', 'Ｂ', 'Ｃ'][displayIndex]}）${text}`;
+            button.addEventListener('click', () => answerRiverQuestion(originalIndex, button));
             options.appendChild(button);
         });
         byId('screen-river-question').classList.add('active');
@@ -4194,7 +4201,7 @@
         const shop = marketShops[marketShopIndex];
         byId('market-shop-name').textContent = shop.direction;
         byId('market-prompt').textContent = `詩句說木蘭在${shop.direction}買了什麼？`;
-        shop.choices.forEach(item => {
+        shuffledOptions(shop.choices).forEach(({ value: item }) => {
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'w-full bg-[#3a2920] hover:bg-[#5a3b28] border-2 border-[#76543b] px-5 py-3 rounded-xl text-left text-lg font-bold transition-colors';
@@ -4248,12 +4255,12 @@
         feedback.className = 'hidden mt-5 rounded-xl border-2 p-4 font-bold leading-relaxed';
         feedback.textContent = '';
 
-        marketQuestionOptions.forEach((text, index) => {
+        shuffledOptions(marketQuestionOptions).forEach(({ value: text, originalIndex }, displayIndex) => {
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'w-full bg-[#3a2920] hover:bg-[#5a3b28] border-2 border-[#76543b] px-4 py-3 rounded-xl text-left text-base md:text-lg font-bold transition-colors';
-            button.textContent = `（${['Ａ', 'Ｂ', 'Ｃ'][index]}）${text}`;
-            button.addEventListener('click', () => answerMarketQuestion(index, button));
+            button.textContent = `（${['Ａ', 'Ｂ', 'Ｃ'][displayIndex]}）${text}`;
+            button.addEventListener('click', () => answerMarketQuestion(originalIndex, button));
             options.appendChild(button);
         });
         byId('screen-market-question').classList.add('active');
@@ -4377,16 +4384,16 @@
         const options = byId('mistake-review-options');
         options.innerHTML = '';
         byId('mistake-review-submit').classList.toggle('hidden', !entry.multi);
-        entry.options.forEach((option, index) => {
+        shuffledOptions(entry.options).forEach(({ value: option, originalIndex }, displayIndex) => {
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'w-full bg-[#3a2920] hover:bg-[#5a3b28] border-2 border-[#76543b] px-4 py-2.5 rounded-xl text-left text-base font-bold transition-colors';
-            button.textContent = `（${['Ａ', 'Ｂ', 'Ｃ', 'Ｄ', 'Ｅ'][index] || String.fromCharCode(65 + index)}）${option}`;
+            button.textContent = `（${['Ａ', 'Ｂ', 'Ｃ', 'Ｄ', 'Ｅ'][displayIndex] || String.fromCharCode(65 + displayIndex)}）${option}`;
             if (entry.multi) {
                 button.setAttribute('aria-pressed', 'false');
-                button.addEventListener('click', () => toggleMistakeReviewOption(index, button));
+                button.addEventListener('click', () => toggleMistakeReviewOption(originalIndex, button));
             } else {
-                button.addEventListener('click', () => answerMistakeReview(index));
+                button.addEventListener('click', () => answerMistakeReview(originalIndex));
             }
             options.appendChild(button);
         });
